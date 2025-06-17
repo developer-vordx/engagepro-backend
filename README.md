@@ -273,7 +273,7 @@ Handles biometric, behavioral, or AI-powered identity matching.
 
 -   Cover all new features with proper tests.
 
--   Follow Vordx commit message format.
+-   Follow Engage pro commit message format.
 
 -   Submit PRs with updated API docs (OpenAPI/Postman).
 ---
