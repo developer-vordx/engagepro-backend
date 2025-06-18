@@ -48,9 +48,9 @@ return [
     ],
 
     'twitter' => [
-        'client_id' => env('TWITTER_CLIENT_ID'),
-        'client_secret' => env('TWITTER_CLIENT_SECRET'),
-        'redirect' => env('TWITTER_REDIRECT_URI'),
+        'client_id' => env('TWITTER_CLIENT_ID','akfKtRkqSSx5mxDEBz6T1VBNc'),
+        'client_secret' => env('TWITTER_CLIENT_SECRET','Xq08boj26Vn5heBroXg4JuHd54w9XeZX24OJbuVGdCm3qD6Bcj'),
+        'redirect' => env('TWITTER_REDIRECT_URI','https://7baa-2407-aa80-116-e6a7-ddae-8f78-1c30-97cc.ngrok-free.app/api/v1/twitter/callback'),
     ],
 
     'twilio' => [
