@@ -26,6 +26,7 @@ class JwtCustomerAuthMiddleware
         } catch (\Exception $e) {
             return Helper::response('Invalid Token ', 'Authentication token is invalid or expired', Response::HTTP_UNAUTHORIZED);
         }
+        auth('customer')->user()->update(['last_login' => now()]);
         $request->merge(['customer' => $customer]);
         return $next($request);
     }

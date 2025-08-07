@@ -5,6 +5,7 @@ namespace App\Services\Api\V1\CustomerBackOffice\Auth;
 use App\Contracts\Api\V1\CustomerBackOffice\Auth\VerifyEmailInterface;
 use Symfony\Component\HttpFoundation\Response as ResponseAlias;
 use Illuminate\Support\Facades\DB;
+use App\Models\Customer;
 use App\Helper;
 
 class VerifyEmailService implements VerifyEmailInterface
@@ -18,6 +19,7 @@ class VerifyEmailService implements VerifyEmailInterface
             $checkToken = $queryCheck->first();
             if ($checkToken) {
                 $queryCheck->delete();
+                Customer::where('email', $request->email)->update(['email_verified_at' => now()]);
                 return Helper::response('Email verified.', 'Email verified successfully', ResponseAlias::HTTP_OK);
             }
 
