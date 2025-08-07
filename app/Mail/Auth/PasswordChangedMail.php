@@ -3,25 +3,25 @@
 namespace App\Mail\Auth;
 
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Attachment;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 
-class EmailVerificationMail extends Mailable
+class PasswordChangedMail extends Mailable
 {
     use Queueable, SerializesModels;
 
     public mixed $customer;
-    public string $token;
+
     /**
      * Create a new message instance.
      */
-    public function __construct($customer, $token)
+    public function __construct($customer)
     {
         $this->customer = $customer;
-        $this->token = $token;
     }
 
     /**
@@ -30,7 +30,7 @@ class EmailVerificationMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Email Verification',
+            subject: 'Password Changed',
         );
     }
 
@@ -40,11 +40,10 @@ class EmailVerificationMail extends Mailable
     public function content(): Content
     {
         return new Content(
-            view: 'mails.verify-email',
+            view: 'mails.password-changed',
             with: [
                 'name' => $this->customer->name,
                 'email' => $this->customer->email,
-                'token' => $this->token,
             ],
         );
     }

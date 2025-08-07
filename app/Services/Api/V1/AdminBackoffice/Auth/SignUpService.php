@@ -27,11 +27,11 @@ class SignUpService extends BaseService implements SignUpInterface
             ]);
 
             $token = JWTAuth::fromUser($user);
-            $data = [
+            $response = [
                 'user' => $user,
                 'token' => $token,
             ];
-            return Helper::response('User created successfully', $data, ResponseAlias::HTTP_CREATED);
+            return Helper::response('User created successfully', $response, ResponseAlias::HTTP_CREATED);
 
         } catch (\Exception $exception) {
             return Helper::errors($exception);

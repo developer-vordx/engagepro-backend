@@ -3,7 +3,7 @@
 namespace App\Services\Api\V1\AdminBackoffice\Auth;
 
 use App\Contracts\Api\V1\AdminBackOffice\Auth\ForgotPasswordInterface;
-use App\Mail\PasswordResetMail;
+use App\Mail\Auth\PasswordResetMail;
 use App\Utils\BaseService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;

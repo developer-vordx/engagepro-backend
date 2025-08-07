@@ -2,7 +2,7 @@
 
 namespace App\Contracts\Api\V1\CustomerBackOffice\Auth;
 
-interface PasswordResetInterface
+interface VerifyEmailInterface
 {
     public function handle($request);
 }

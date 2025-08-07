@@ -2,21 +2,21 @@
 
 namespace App\Jobs\Auth;
 
-use App\Mail\Auth\EmailVerificationMail;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use App\Mail\Auth\ForgotPasswordMail;
 use Illuminate\Support\Facades\Mail;
 
-class EmailVerificationJob implements ShouldQueue
+class ForgotPasswordJob implements ShouldQueue
 {
     use Queueable, Dispatchable, InteractsWithQueue, SerializesModels;
 
+
     public mixed $customer;
     public string $token;
-
     /**
      * Create a new job instance.
      */
@@ -32,6 +32,6 @@ class EmailVerificationJob implements ShouldQueue
      */
     public function handle(): void
     {
-        Mail::to($this->customer->email)->send(new EmailVerificationMail($this->customer, $this->token));
+        Mail::to($this->customer->email)->send(new ForgotPasswordMail($this->customer, $this->token));
     }
 }

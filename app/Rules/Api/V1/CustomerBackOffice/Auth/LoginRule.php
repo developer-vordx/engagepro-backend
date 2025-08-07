@@ -2,11 +2,11 @@
 
 namespace App\Rules\Api\V1\CustomerBackOffice\Auth;
 
-use App\Models\User;
-use Closure;
+use Illuminate\Translation\PotentiallyTranslatedString;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Translation\PotentiallyTranslatedString;
+use App\Models\User;
+use Closure;
 
 class LoginRule implements ValidationRule
 {

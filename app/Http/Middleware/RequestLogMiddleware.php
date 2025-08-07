@@ -27,9 +27,8 @@ class RequestLogMiddleware
         // Log AFTER timing (doesn't affect measured duration)
         $agent = new Agent();
         $requestData = $this->filterRequestData($request);
-        $log = RequestLog::create((new SaveRequestDTO($request, $agent, $requestData, $response, $durationMs))->toArray());
+        RequestLog::create((new SaveRequestDTO($request, $agent, $requestData, $response, $durationMs))->toArray());
 
-        $request['request_id'] = $log->id;
         return $response;
     }
 

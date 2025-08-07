@@ -2,11 +2,10 @@
 
 namespace App\Http\Requests\Api\V1\CustomerBackOffice\Auth;
 
-use App\Rules\Api\V1\CustomerBackOffice\Auth\LoginRule;
-use App\Utils\BaseRequest;
 use Illuminate\Contracts\Validation\ValidationRule;
+use App\Utils\BaseRequest;
 
-class LoginRequest extends BaseRequest
+class UpdateProfileRequest extends BaseRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -24,19 +23,18 @@ class LoginRequest extends BaseRequest
     public function rules(): array
     {
         return [
-            'email' => ['required', 'email', 'exists:customers,email', new LoginRule()],
-            'password' => 'required|string|max:255'
+            'name' => 'required|max:100',
+            'phone' => 'required|max:20',
         ];
     }
 
     public function messages(): array
     {
         return [
-            'email.required' => 'Email is required',
-            'email.email' => 'Email is not valid',
-            'email.exists' => 'Email is not registered',
-            'password.required' => 'Password is required',
-            'password.max' => 'Password length exceeds the maximum length',
+            'name.required' => 'Name is required',
+            'name.max' => 'Name must be less than 100 characters',
+            'phone.required' => 'Phone is required',
+            'phone.max' => 'Phone must be less than 20 characters',
         ];
     }
 }

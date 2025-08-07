@@ -14,19 +14,19 @@ class Helper extends BaseService
 
     /**
      * @param string $message
-     * @param $data
+     * @param $response
      * @param int $statusCode
      * @return JsonResponse
      */
-    public static function response(string $message, $data, int $statusCode): JsonResponse
+    public static function response(string $message, $response, int $statusCode): JsonResponse
     {
-        $response = ['message' => $message];
+        $data = ['message' => $message];
         if ($statusCode < 400) {
-            $response['data'] = (array)$data;
+            $data['data'] = (array)$response;
         } else {
-            $response['errors'] = (array)$data;
+            $data['errors'] = (array)$response;
         }
-        return response()->json($response, $statusCode);
+        return response()->json($data, $statusCode);
     }
 
 
@@ -45,13 +45,17 @@ class Helper extends BaseService
                 'errors' => (array)$errorException,
             ], ResponseAlias::HTTP_INTERNAL_SERVER_ERROR);
 
-        }catch (\Exception $e) {
-             Log::error('Error during saving error logs: ' . $e->getMessage(), [
+        } catch (\Exception $e) {
+            Log::error('Error during saving error logs: ' . $e->getMessage(), [
                 'exception' => $e,
                 'file' => $e->getFile(),
                 'line' => $e->getLine(),
                 'trace' => $e->getTraceAsString(),
             ]);
+            return response()->json([
+                'message' => 'Error during saving error logs:',
+                'errors' => (array)$e->getMessage(),
+            ], ResponseAlias::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 }

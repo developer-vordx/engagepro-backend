@@ -2,27 +2,48 @@
 
 namespace App\Http\Controllers\Api\V1\CustomerBackOffice\Auth;
 
+use App\Http\Requests\Api\V1\CustomerBackOffice\Auth\UpdatePasswordRequest;
+use App\Http\Requests\Api\V1\CustomerBackOffice\Auth\UpdateProfileRequest;
+use App\Contracts\Api\V1\CustomerBackOffice\Auth\UpdatePasswordInterface;
+use App\Contracts\Api\V1\CustomerBackOffice\Auth\UpdateProfileInterface;
 use App\Http\Requests\Api\V1\CustomerBackOffice\Auth\SignUpRequest;
 use App\Http\Requests\Api\V1\CustomerBackOffice\Auth\LoginRequest;
 use App\Contracts\Api\V1\CustomerBackOffice\Auth\SignUpInterface;
+use App\Contracts\Api\V1\CustomerBackOffice\Auth\LogoutInterface;
 use App\Contracts\Api\V1\CustomerBackOffice\Auth\LoginInterface;
 use App\Http\Controllers\Controller;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\Http\Request;
 
 class AuthController extends Controller
 {
 
     protected LoginInterface $login;
     protected SignUpInterface $signup;
+    protected UpdateProfileInterface $updateProfile;
+    protected LogoutInterface $logout;
+    protected UpdatePasswordInterface $updatePasswordInterface;
 
     /**
      * @param LoginInterface $login
      * @param SignUpInterface $signup
+     * @param UpdateProfileInterface $updateProfile
+     * @param LogoutInterface $logout
+     * @param UpdatePasswordInterface $updatePasswordInterface
      */
-    public function __construct(LoginInterface $login, SignUpInterface $signup)
+
+    public function __construct(
+        LoginInterface          $login,
+        SignUpInterface         $signup,
+        UpdateProfileInterface  $updateProfile,
+        LogoutInterface         $logout,
+        UpdatePasswordInterface $updatePasswordInterface
+    )
     {
         $this->login = $login;
         $this->signup = $signup;
+        $this->updateProfile = $updateProfile;
+        $this->logout = $logout;
+        $this->updatePasswordInterface = $updatePasswordInterface;
     }
 
     /**
@@ -43,15 +64,31 @@ class AuthController extends Controller
         return $this->login->handle($request);
     }
 
-    public function logout()
+    /**
+     * @param UpdateProfileRequest $request
+     * @return mixed
+     */
+    public function updateProfile(UpdateProfileRequest $request)
     {
-        try {
-            Auth::guard('customer')->logout();
-            return success('User successfully logged out.', [], 200);
+        return $this->updateProfile->handle($request);
+    }
 
-        } catch (\Tymon\JWTAuth\Exceptions\JWTException $e) {
-            return errors('Failed to logout, please try again.', [], 401);
-        }
+    /**
+     * @param Request $request
+     * @return mixed
+     */
+    public function logout(Request $request)
+    {
+        return $this->logout->handle($request);
+    }
+
+    /**
+     * @param UpdatePasswordRequest $request
+     * @return mixed
+     */
+    public function updatePassword(UpdatePasswordRequest $request)
+    {
+        return $this->updatePasswordInterface->handle($request);
     }
 
 }

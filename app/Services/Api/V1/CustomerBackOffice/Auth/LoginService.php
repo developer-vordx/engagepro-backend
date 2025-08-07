@@ -23,12 +23,12 @@ class LoginService extends BaseService implements LoginInterface
                 return Helper::response('Unauthorized', 'Invalid credentials provided', ResponseAlias::HTTP_UNAUTHORIZED);
             }
 
-            $data = [
+            $response = [
                 'user' => Auth::guard('customer')->user(),
                 'token' => $token,
             ];
 
-            return Helper::response('User logged in successfully', $data, ResponseAlias::HTTP_OK);
+            return Helper::response('User logged in successfully', $response, ResponseAlias::HTTP_OK);
         } catch (\Exception $exception) {
             return Helper::errors($exception);
         }

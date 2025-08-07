@@ -22,8 +22,7 @@ class JwtCustomerAuthMiddleware
     public function handle(Request $request, Closure $next)
     {
         try {
-            $customer = Auth::guard('customer')->parseToken()->authenticate();
-            dd(1);
+            $customer = Auth::guard('customer')->authenticate();
         } catch (\Exception $e) {
             return Helper::response('Invalid Token ', 'Authentication token is invalid or expired', Response::HTTP_UNAUTHORIZED);
         }
