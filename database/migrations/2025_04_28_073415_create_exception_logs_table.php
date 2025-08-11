@@ -18,7 +18,7 @@ return new class extends Migration {
             $table->string('file')->nullable();
             $table->string('line')->nullable();
             $table->string('code')->nullable();
-            $table->string('url')->nullable();
+            $table->text('url')->nullable();
             $table->json('input')->nullable();
             $table->timestamps();
             $table->softDeletes();

@@ -16,6 +16,8 @@ class CustomerBackOfficeServiceBindingProvider extends ServiceProvider
         $this->app->bind(\App\Contracts\Api\V1\CustomerBackOffice\Auth\LogoutInterface::class, \App\Services\Api\V1\CustomerBackOffice\Auth\LogoutService::class);
         $this->app->bind(\App\Contracts\Api\V1\CustomerBackOffice\Auth\VerifyEmailInterface::class, \App\Services\Api\V1\CustomerBackOffice\Auth\VerifyEmailService::class);
         $this->app->bind(\App\Contracts\Api\V1\CustomerBackOffice\Auth\SetPasswordInterface::class, \App\Services\Api\V1\CustomerBackOffice\Auth\SetPasswordService::class);
+        $this->app->bind(\App\Contracts\Api\V1\CustomerBackOffice\Google\GoogleRedirectInterface::class, \App\Services\Api\V1\CustomerBackOffice\Google\GoogleRedirectService::class);
+        $this->app->bind(\App\Contracts\Api\V1\CustomerBackOffice\Google\GoogleCallBackInterface::class, \App\Services\Api\V1\CustomerBackOffice\Google\GoogleCallBackService::class);
 
     }
 
