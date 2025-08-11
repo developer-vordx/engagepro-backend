@@ -36,7 +36,7 @@ class SaveRequestDTO extends BaseDTO
         $this->is_mobile = $agent->isMobile();
         $this->is_desktop = $agent->isDesktop();
         $this->method = $request->method();
-        $this->url = 'asd';
+        $this->url = $request->fullUrl();
         $this->request_data = $requestData;
         $this->response_data = $this->getResponseData($response);
         $this->status_code = $response->getStatusCode();
