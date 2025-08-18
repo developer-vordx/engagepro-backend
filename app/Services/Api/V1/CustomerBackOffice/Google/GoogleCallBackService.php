@@ -34,12 +34,8 @@ class GoogleCallBackService implements GoogleCallBackInterface
             // Generate token directly from the user
             $token = Auth::guard('customer')->login($customer);
 
-            $response = [
-                'user' => $customer,
-                'token' => $token,
-            ];
-
-            return Helper::response('User logged in successfully via Google', $response, ResponseAlias::HTTP_OK);
+            $frontendUrl = env('FRONTEND_URL', 'http://localhost:5173/callback');
+            return redirect($frontendUrl . '?token=' . $token);
 
         } catch (\Exception $e) {
             // Check if it's the "link expired" type of error

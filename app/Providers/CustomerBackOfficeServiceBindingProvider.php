@@ -9,6 +9,7 @@ class CustomerBackOfficeServiceBindingProvider extends ServiceProvider
     public function register()
     {
         $this->app->bind(\App\Contracts\Api\V1\CustomerBackOffice\Auth\LoginInterface::class, \App\Services\Api\V1\CustomerBackOffice\Auth\LoginService::class);
+        $this->app->bind(\App\Contracts\Api\V1\CustomerBackOffice\Auth\GetAuthUserInterface::class, \App\Services\Api\V1\CustomerBackOffice\Auth\GetAuthUserService::class);
         $this->app->bind(\App\Contracts\Api\V1\CustomerBackOffice\Auth\SignUpInterface::class, \App\Services\Api\V1\CustomerBackOffice\Auth\SignUpService::class);
         $this->app->bind(\App\Contracts\Api\V1\CustomerBackOffice\Auth\ForgotPasswordInterface::class, \App\Services\Api\V1\CustomerBackOffice\Auth\ForgotPasswordService::class);
         $this->app->bind(\App\Contracts\Api\V1\CustomerBackOffice\Auth\UpdatePasswordInterface::class, \App\Services\Api\V1\CustomerBackOffice\Auth\UpdatePasswordService::class);

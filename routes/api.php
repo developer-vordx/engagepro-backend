@@ -27,6 +27,9 @@ Route::prefix('v1')->middleware(['request_logs'])->group(function () {
     Route::post('verify-email', [\App\Http\Controllers\Api\V1\CustomerBackOffice\Auth\PasswordController::class, 'verifyEmail']);
 
     Route::middleware(['customer.auth'])->group(function () {
+
+        Route::get('authenticate', [\App\Http\Controllers\Api\V1\CustomerBackOffice\Auth\AuthController::class, 'getAuthUser']);
+
         Route::post('update-profile', [\App\Http\Controllers\Api\V1\CustomerBackOffice\Auth\AuthController::class, 'updateProfile']);
         Route::post('logout', [\App\Http\Controllers\Api\V1\CustomerBackOffice\Auth\AuthController::class, 'logout']);
         Route::post('update-password', [\App\Http\Controllers\Api\V1\CustomerBackOffice\Auth\AuthController::class, 'updatePassword']);

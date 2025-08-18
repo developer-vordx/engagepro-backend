@@ -6,6 +6,7 @@ use App\Http\Requests\Api\V1\CustomerBackOffice\Auth\UpdatePasswordRequest;
 use App\Http\Requests\Api\V1\CustomerBackOffice\Auth\UpdateProfileRequest;
 use App\Contracts\Api\V1\CustomerBackOffice\Auth\UpdatePasswordInterface;
 use App\Contracts\Api\V1\CustomerBackOffice\Auth\UpdateProfileInterface;
+use App\Contracts\Api\V1\CustomerBackOffice\Auth\GetAuthUserInterface;
 use App\Http\Requests\Api\V1\CustomerBackOffice\Auth\SignUpRequest;
 use App\Http\Requests\Api\V1\CustomerBackOffice\Auth\LoginRequest;
 use App\Contracts\Api\V1\CustomerBackOffice\Auth\SignUpInterface;
@@ -22,6 +23,7 @@ class AuthController extends Controller
     protected UpdateProfileInterface $updateProfile;
     protected LogoutInterface $logout;
     protected UpdatePasswordInterface $updatePasswordInterface;
+    protected GetAuthUserInterface $authUser;
 
     /**
      * @param LoginInterface $login
@@ -29,6 +31,7 @@ class AuthController extends Controller
      * @param UpdateProfileInterface $updateProfile
      * @param LogoutInterface $logout
      * @param UpdatePasswordInterface $updatePasswordInterface
+     * @param GetAuthUserInterface $authUser
      */
 
     public function __construct(
@@ -36,7 +39,8 @@ class AuthController extends Controller
         SignUpInterface         $signup,
         UpdateProfileInterface  $updateProfile,
         LogoutInterface         $logout,
-        UpdatePasswordInterface $updatePasswordInterface
+        UpdatePasswordInterface $updatePasswordInterface,
+        GetAuthUserInterface    $authUser
     )
     {
         $this->login = $login;
@@ -44,6 +48,7 @@ class AuthController extends Controller
         $this->updateProfile = $updateProfile;
         $this->logout = $logout;
         $this->updatePasswordInterface = $updatePasswordInterface;
+        $this->authUser = $authUser;
     }
 
     /**
@@ -89,6 +94,15 @@ class AuthController extends Controller
     public function updatePassword(UpdatePasswordRequest $request)
     {
         return $this->updatePasswordInterface->handle($request);
+    }
+
+    /**
+     * @param Request $request
+     * @return mixed
+     */
+    public function getAuthUser(Request $request)
+    {
+        return $this->authUser->handle($request);
     }
 
 }
