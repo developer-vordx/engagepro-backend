@@ -4,8 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
-{
+return new class extends Migration {
     /**
      * Run the migrations.
      */
@@ -14,12 +13,12 @@ return new class extends Migration
         Schema::create('exception_logs', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->nullable()->constrained()->onDelete('cascade');
-            $table->string('message')->nullable();
+            $table->text('message')->nullable();
             $table->text('trace')->nullable();
             $table->string('file')->nullable();
             $table->string('line')->nullable();
-            $table->integer('code')->nullable();
-            $table->string('url')->nullable();
+            $table->string('code')->nullable();
+            $table->text('url')->nullable();
             $table->json('input')->nullable();
             $table->timestamps();
             $table->softDeletes();

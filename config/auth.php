@@ -40,9 +40,13 @@ return [
             'driver' => 'session',
             'provider' => 'users',
         ],
-        'api' => [
+        'user' => [
             'driver' => 'jwt',
             'provider' => 'users',
+        ],
+        'customer' => [
+            'driver' => 'jwt',
+            'provider' => 'customers',
         ],
         'api/driver' => [
             'driver' => 'jwt',
@@ -73,11 +77,14 @@ return [
             'driver' => 'eloquent',
             'model' => env('AUTH_MODEL', App\Models\User::class),
         ],
-        'drivers' => [
+//        'drivers' => [
+//            'driver' => 'eloquent',
+//            'model' => App\Models\Driver::class,
+//        ],
+        'customers' => [
             'driver' => 'eloquent',
-            'model' => App\Models\Driver::class,
+            'model' => App\Models\Customer::class,
         ],
-
         // 'users' => [
         //     'driver' => 'database',
         //     'table' => 'users',
@@ -106,7 +113,13 @@ return [
     'passwords' => [
         'users' => [
             'provider' => 'users',
-            'table' => env('AUTH_PASSWORD_RESET_TOKEN_TABLE', 'password_reset_tokens'),
+            'table' => env('AUTH_PASSWORD_RESET_TOKEN_TABLE_USERS', 'password_reset_token_users'),
+            'expire' => 60,
+            'throttle' => 60,
+        ],
+        'customers' => [
+            'provider' => 'customers',
+            'table' => env('AUTH_PASSWORD_RESET_TOKEN_TABLE_CUSTOMERS', 'password_reset_token_customers'),
             'expire' => 60,
             'throttle' => 60,
         ],

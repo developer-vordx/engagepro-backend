@@ -3,21 +3,20 @@
 
 namespace App\Utils;
 
-use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Contracts\Validation\Validator;
+use Symfony\Component\HttpFoundation\Response as ResponseAlias;
 use Illuminate\Http\Exceptions\HttpResponseException;
-use Illuminate\Http\JsonResponse;
+use Illuminate\Contracts\Validation\Validator;
+use Illuminate\Foundation\Http\FormRequest;
+use App\Helper;
 
 class BaseRequest extends FormRequest
 {
     protected function failedValidation(Validator $validator)
     {
-        throw new HttpResponseException(
-            response()->json([
-                'status' => false,
-                'message' => 'Bad request',
-                'errors' => $validator->errors(),
-            ], 400)
+        throw new HttpResponseException(Helper::response(
+            'One or more fields have an error',
+            $validator->errors()->all(),
+            ResponseAlias::HTTP_UNPROCESSABLE_ENTITY)
         );
     }
 }

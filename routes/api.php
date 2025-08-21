@@ -1,52 +1,98 @@
 <?php
 
 
-use App\Http\Controllers\Api\V1\Auth\GoogleAuthController;
-use App\Http\Controllers\Api\V1\Auth\PasswordResetController;
-use App\Utils\HttpStatusCode;
+use App\Http\Controllers\Api\V1\CustomerBackOffice\Social\SocialController;
+use GuzzleHttp\Client;
+use Symfony\Component\HttpFoundation\Response as ResponseAlias;
 use Illuminate\Support\Facades\Route;
+use App\Helper;
 
 Route::prefix('v1')->middleware(['request_logs'])->group(function () {
 
+    Route::get('twitter', [\App\Http\Controllers\Api\V1\AdminBackOffice\Auth\TwitterController::class, 'redirectToTwitter']);
+    Route::get('twitter/callback', [\App\Http\Controllers\Api\V1\AdminBackOffice\Auth\TwitterController::class, 'handleTwitterCallback']);
 
-    Route::get('google', [GoogleAuthController::class, 'redirectToGoogle']);
-    Route::get('google/callback', [GoogleAuthController::class, 'handleGoogleCallback']);
-
-    Route::get('twitter', [\App\Http\Controllers\Api\V1\Auth\TwitterController::class, 'redirectToTwitter']);
-    Route::get('twitter/callback', [\App\Http\Controllers\Api\V1\Auth\TwitterController::class, 'handleTwitterCallback']);
-
-
-    Route::get('facebook', [\App\Http\Controllers\Api\V1\Auth\FacebookController::class, 'redirectToFacebook']);
-    Route::get('facebook/callback', [\App\Http\Controllers\Api\V1\Auth\FacebookController::class, 'handleFacebookCallback']);
-
-    Route::post('signup', [\App\Http\Controllers\Api\V1\Auth\AuthController::class, 'signup']);
-    Route::post('login', [\App\Http\Controllers\Api\V1\Auth\AuthController::class, 'login']);
-
-    Route::post('forgot-password', [PasswordResetController::class, 'forgotPassword']);
-    Route::post('reset-password', [PasswordResetController::class, 'resetPassword']);
+    Route::get('facebook', [\App\Http\Controllers\Api\V1\AdminBackOffice\Auth\FacebookController::class, 'redirectToFacebook']);
+    Route::get('facebook/callback', [\App\Http\Controllers\Api\V1\AdminBackOffice\Auth\FacebookController::class, 'handleFacebookCallback']);
 
 
-Route::middleware(['auth'])->group(function () {
 
-    Route::post('/logout', [\App\Http\Controllers\Api\V1\Auth\AuthController::class, 'logout']);
+    Route::post('signup', [\App\Http\Controllers\Api\V1\CustomerBackOffice\Auth\AuthController::class, 'signup']);
+    Route::post('login', [\App\Http\Controllers\Api\V1\CustomerBackOffice\Auth\AuthController::class, 'login']);
 
-    Route::prefix('user')->group(function () {
+    Route::get('google', [\App\Http\Controllers\Api\V1\CustomerBackOffice\Auth\GoogleAuthController::class, 'redirectToGoogle']);
+    Route::get('google/callback', [\App\Http\Controllers\Api\V1\CustomerBackOffice\Auth\GoogleAuthController::class, 'handleGoogleCallback']);
 
-        Route::get('/', [\App\Http\Controllers\Api\V1\User\ProfileController::class, 'getProfile']);
-        Route::post('/', [\App\Http\Controllers\Api\V1\User\ProfileController::class, 'updateProfile']);
-        Route::post('change-password', [\App\Http\Controllers\Api\V1\User\ProfileController::class, 'updatePassword']);
-        Route::post('/avatar', [\App\Http\Controllers\Api\V1\User\ProfileController::class, 'updateAvatar']);
-        Route::post('change-email', [\App\Http\Controllers\Api\V1\User\ProfileController::class, 'updateEmail']);
+    Route::post('forgot-password', [\App\Http\Controllers\Api\V1\CustomerBackOffice\Auth\PasswordController::class, 'forgotPassword']);
+    Route::post('set-password', [\App\Http\Controllers\Api\V1\CustomerBackOffice\Auth\PasswordController::class, 'setPassword']);
+    Route::post('verify-email', [\App\Http\Controllers\Api\V1\CustomerBackOffice\Auth\PasswordController::class, 'verifyEmail']);
+
+    Route::middleware(['customer.auth'])->group(function () {
+
+        Route::get('authenticate', [\App\Http\Controllers\Api\V1\CustomerBackOffice\Auth\AuthController::class, 'getAuthUser']);
+
+        Route::post('update-profile', [\App\Http\Controllers\Api\V1\CustomerBackOffice\Auth\AuthController::class, 'updateProfile']);
+        Route::post('logout', [\App\Http\Controllers\Api\V1\CustomerBackOffice\Auth\AuthController::class, 'logout']);
+        Route::post('update-password', [\App\Http\Controllers\Api\V1\CustomerBackOffice\Auth\AuthController::class, 'updatePassword']);
     });
 
+    Route::prefix('social')->group(function () {
+//        Route::get('/accounts', [SocialController::class, 'getLinkedAccounts']);
+
+        Route::get('/{platform}/auth-url', [SocialController::class, 'getAuthUrl']);
+//            ->middleware([CheckSubscriptionLimits::class . ':accounts']);
+//        Route::post('/{platform}/callback', [SocialController::class, 'handleCallback']);
+//        Route::delete('/accounts/{accountId}', [SocialController::class, 'disconnectAccount']);
+//        Route::post('/accounts/{accountId}/refresh', [SocialController::class, 'refreshToken']);
+    });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//    Route::prefix('adminBackOffice')->group(function () {
+//
+//        Route::post('signup', [\App\Http\Controllers\Api\V1\AdminBackOffice\Auth\AuthController::class, 'signup']);
+//        Route::post('login', [\App\Http\Controllers\Api\V1\AdminBackOffice\Auth\AuthController::class, 'login']);
+//
+//        Route::post('forgot-password', [\App\Http\Controllers\Api\V1\AdminBackOffice\Auth\PasswordResetController::class, 'forgotPassword']);
+//        Route::post('reset-password', [\App\Http\Controllers\Api\V1\AdminBackOffice\Auth\PasswordResetController::class, 'resetPassword']);
+//
+//        Route::middleware(['user.auth'])->group(function () {
+//
+//            Route::post('/logout', [\App\Http\Controllers\Api\V1\AdminBackOffice\Auth\AuthController::class, 'logout']);
+//
+//            Route::prefix('user')->group(function () {
+//
+//                Route::get('/', [\App\Http\Controllers\Api\V1\AdminBackOffice\User\ProfileController::class, 'getProfile']);
+//                Route::post('/', [\App\Http\Controllers\Api\V1\AdminBackOffice\User\ProfileController::class, 'updateProfile']);
+//                Route::post('change-password', [\App\Http\Controllers\Api\V1\AdminBackOffice\User\ProfileController::class, 'updatePassword']);
+//                Route::post('/avatar', [\App\Http\Controllers\Api\V1\AdminBackOffice\User\ProfileController::class, 'updateAvatar']);
+//                Route::post('change-email', [\App\Http\Controllers\Api\V1\AdminBackOffice\User\ProfileController::class, 'updateEmail']);
+//            });
+//
+//        });
+//    });
+
+
 });
-
-
-
-});
-
 
 
 Route::any('{any}', function () {
-    return  errors('API route not found', ['error' => 'API route not found'],HttpStatusCode::HTTP_NOT_FOUND );
+    return Helper::response('Not found', 'Requested api or method not found.', ResponseAlias::HTTP_NOT_FOUND);
 })->where('any', '.*');

@@ -1,13 +1,13 @@
 <?php
 
-use App\Http\Controllers\Api\V1\Auth\GoogleAuthController;
-use App\Http\Controllers\Api\V1\Auth\TwitterController;
+use App\Http\Controllers\Api\V1\AdminBackOffice\Auth\GoogleAuthController;
+use App\Http\Controllers\Api\V1\AdminBackOffice\Auth\TwitterController;
 use Illuminate\Support\Facades\Route;
-
-Route::get('/', function () {
-    return view('welcome');
+Route::middleware(['request_logs'])->group(function () {
+    Route::get('/', function () {
+        return view('welcome');
+    });
 });
-
 
 // Route::get('/doc', function () {
 //     return view('vendor/l5-swagger/index');

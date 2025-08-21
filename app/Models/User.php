@@ -32,8 +32,6 @@ class User extends Authenticatable implements JWTSubject
         'password',
         'remember_token',
         'deleted_at',
-        'facebook_id',
-        'google_id'
     ];
 
     /**

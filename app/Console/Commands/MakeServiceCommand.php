@@ -57,7 +57,7 @@ class MakeServiceCommand extends Command
         use App\Utils\BaseService;
         use $contractNamespace\\$interfaceName;
 
-        class $serviceName extends  BaseService  implements $interfaceName
+        class $serviceName implements $interfaceName
         {
             public function handle(\$request)
             {
@@ -80,7 +80,7 @@ class MakeServiceCommand extends Command
 
     protected function bindInServiceProvider(string $interfaceFQCN, string $serviceFQCN): void
     {
-        $providerPath = app_path('Providers/ServiceBindingProvider.php');
+        $providerPath = app_path('Providers/AdminBackOfficeServiceBindingProvider.php');
         $binding = "\$this->app->bind(\\$interfaceFQCN::class, \\$serviceFQCN::class);";
 
         // Create the provider if not exists
@@ -92,7 +92,7 @@ class MakeServiceCommand extends Command
 
             use Illuminate\Support\ServiceProvider;
 
-            class ServiceBindingProvider extends ServiceProvider
+            class AdminBackOfficeServiceBindingProvider extends ServiceProvider
             {
                 public function register()
                 {
@@ -103,7 +103,7 @@ class MakeServiceCommand extends Command
             }
             PHP;
             File::put($providerPath, $providerTemplate);
-            $this->components->info('Created ServiceBindingProvider');
+            $this->components->info('Created AdminBackOfficeServiceBindingProvider');
         }
 
         // Add binding if not already there
@@ -116,9 +116,9 @@ class MakeServiceCommand extends Command
                 $providerContent
             );
             File::put($providerPath, $providerContent);
-            $this->components->info("Bound $interfaceFQCN to $serviceFQCN in ServiceBindingProvider.");
+            $this->components->info("Bound $interfaceFQCN to $serviceFQCN in AdminBackOfficeServiceBindingProvider.");
         } else {
-            $this->components->info("Binding already exists in ServiceBindingProvider.");
+            $this->components->info("Binding already exists in AdminBackOfficeServiceBindingProvider.");
         }
     }
 }

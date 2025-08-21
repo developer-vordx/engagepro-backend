@@ -22,6 +22,9 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
 
-        $user =  User::factory()->create();
+        $this->call([
+           SocialAccountSeeder::class,
+            SubscriptionPlanSeeder::class
+        ]);
     }
 }
