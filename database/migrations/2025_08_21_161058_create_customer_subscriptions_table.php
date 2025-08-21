@@ -20,10 +20,10 @@ return new class extends Migration
             $table->enum('status', ['active', 'expired', 'cancelled', 'pending'])->default('pending');
             $table->integer('posts_this_month')->default(0);
             $table->date('posts_count_reset_date')->nullable();
-            $table->json('metadata')->nullable(); // store additional subscription data
+            $table->json('metadata')->nullable();
             $table->timestamps();
 
-            $table->index(['user_id', 'status']);
+            $table->index(['customer_id', 'status']);
             $table->index(['ends_at', 'status']);
         });
     }

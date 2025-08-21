@@ -11,12 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('published_posts', function (Blueprint $table) {
+        Schema::create('social_posts', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('social_media_platform_id')->after('social_account_id')->constrained()->onDelete('cascade');
-            $table->foreignId('customer_id')->constrained()->onDelete('cascade');
-            $table->foreignId('content_upload_id')->constrained()->onDelete('cascade');
-            $table->foreignId('social_account_id')->constrained()->onDelete('cascade');
+            $table->foreignId('customer_account_id')->constrained()->onDelete('cascade');
+            $table->foreignId('post_id')->constrained()->onDelete('cascade');
             $table->string('platform_post_id');
             $table->string('post_url')->nullable();
             $table->enum('status', ['pending', 'published', 'failed'])->default('pending');
@@ -31,6 +29,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('published_posts');
+        Schema::dropIfExists('social_posts');
     }
 };

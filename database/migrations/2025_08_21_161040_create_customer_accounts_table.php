@@ -11,10 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('social_accounts', function (Blueprint $table) {
+        Schema::create('customer_accounts', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('social_accounts_id')->constrained('social_accounts')->onDelete('cascade');
             $table->foreignId('customer_id')->constrained()->onDelete('cascade');
-            $table->foreignId('social_media_platform_id')->constrained()->onDelete('cascade');
             $table->string('platform_user_id');
             $table->string('username');
             $table->string('display_name')->nullable();
@@ -24,13 +24,16 @@ return new class extends Migration
             $table->text('access_token');
             $table->text('refresh_token')->nullable();
             $table->timestamp('token_expires_at')->nullable();
-            $table->json('platform_data')->nullable(); // store additional platform-specific data
+            $table->json('platform_data')->nullable();
             $table->boolean('is_active')->default(true);
             $table->timestamp('last_synced_at')->nullable();
             $table->timestamps();
 
-            $table->unique(['customer_id', 'social_media_platform_id', 'platform_user_id']);
-            $table->index(['is_active']);
+            $table->unique(
+                ['customer_id', 'social_accounts_id', 'platform_user_id'],
+                'cust_acc_custid_socid_puid_unique'
+            );
+            $table->index('is_active');
         });
     }
 
@@ -39,6 +42,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('social_accounts');
+        Schema::dropIfExists('customer_accounts');
     }
 };

@@ -11,11 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('post_analytics', function (Blueprint $table) {
+        Schema::create('post_insights', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('published_post_id')->constrained()->onDelete('cascade');
-            $table->string('platform');
-            $table->string('platform_post_id');
+            $table->foreignId('published_post_id')->constrained('social_posts')->onDelete('cascade');
             $table->bigInteger('views')->default(0);
             $table->bigInteger('likes')->default(0);
             $table->bigInteger('shares')->default(0);
@@ -25,9 +23,6 @@ return new class extends Migration
             $table->json('additional_metrics')->nullable();
             $table->timestamp('last_updated_at');
             $table->timestamps();
-
-            $table->unique(['published_post_id', 'platform']);
-            $table->index(['platform', 'platform_post_id']);
         });
     }
 
@@ -36,6 +31,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('post_analytics');
+        Schema::dropIfExists('post_insights');
     }
 };

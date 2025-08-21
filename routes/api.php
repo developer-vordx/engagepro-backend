@@ -1,6 +1,8 @@
 <?php
 
 
+use App\Http\Controllers\Api\V1\CustomerBackOffice\Social\SocialController;
+use GuzzleHttp\Client;
 use Symfony\Component\HttpFoundation\Response as ResponseAlias;
 use Illuminate\Support\Facades\Route;
 use App\Helper;
@@ -12,7 +14,6 @@ Route::prefix('v1')->middleware(['request_logs'])->group(function () {
 
     Route::get('facebook', [\App\Http\Controllers\Api\V1\AdminBackOffice\Auth\FacebookController::class, 'redirectToFacebook']);
     Route::get('facebook/callback', [\App\Http\Controllers\Api\V1\AdminBackOffice\Auth\FacebookController::class, 'handleFacebookCallback']);
-
 
 
 
@@ -33,6 +34,16 @@ Route::prefix('v1')->middleware(['request_logs'])->group(function () {
         Route::post('update-profile', [\App\Http\Controllers\Api\V1\CustomerBackOffice\Auth\AuthController::class, 'updateProfile']);
         Route::post('logout', [\App\Http\Controllers\Api\V1\CustomerBackOffice\Auth\AuthController::class, 'logout']);
         Route::post('update-password', [\App\Http\Controllers\Api\V1\CustomerBackOffice\Auth\AuthController::class, 'updatePassword']);
+    });
+
+    Route::prefix('social')->group(function () {
+//        Route::get('/accounts', [SocialController::class, 'getLinkedAccounts']);
+
+        Route::get('/{platform}/auth-url', [SocialController::class, 'getAuthUrl']);
+//            ->middleware([CheckSubscriptionLimits::class . ':accounts']);
+//        Route::post('/{platform}/callback', [SocialController::class, 'handleCallback']);
+//        Route::delete('/accounts/{accountId}', [SocialController::class, 'disconnectAccount']);
+//        Route::post('/accounts/{accountId}/refresh', [SocialController::class, 'refreshToken']);
     });
 
 

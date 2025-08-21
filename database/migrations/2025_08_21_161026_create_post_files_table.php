@@ -11,19 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('content_uploads', function (Blueprint $table) {
+        Schema::create('post_files', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('customer_id')->constrained()->onDelete('cascade');
-            $table->string('title');
-            $table->text('description')->nullable();
+            $table->foreignId('post_id')->constrained()->onDelete('cascade');
             $table->string('file_path');
             $table->enum('file_type', ['image', 'video']);
-            $table->string('mime_type');
-            $table->bigInteger('file_size'); // in bytes
-            $table->json('metadata')->nullable(); // dimensions, duration, etc.
             $table->enum('status', ['pending', 'validated', 'rejected'])->default('pending');
-            $table->json('validation_results')->nullable(); // NSFW check, platform compliance
-            $table->json('tags')->nullable();
+            $table->string('mime_type');
             $table->timestamps();
         });
     }
@@ -33,6 +27,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('content_uploads');
+        Schema::dropIfExists('post_files');
     }
 };
