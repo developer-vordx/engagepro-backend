@@ -16,8 +16,7 @@ return new class extends Migration
             $table->foreignId('post_id')->constrained()->onDelete('cascade');
             $table->string('file_path');
             $table->enum('file_type', ['image', 'video']);
-            $table->enum('status', ['pending', 'validated', 'rejected'])->default('pending');
-            $table->string('mime_type');
+            $table->enum('status', ['pending', 'validated', 'rejected', 'draft'])->default('pending');
             $table->timestamps();
         });
     }

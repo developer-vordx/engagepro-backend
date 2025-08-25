@@ -13,10 +13,9 @@ class SocialAccount extends Model
     protected $guarded = [];
 
     protected $casts = [
-        'required_scopes' => 'array',
+        'scopes' => 'array',
         'supported_media_types' => 'array',
         'media_requirements' => 'array',
-        'supports_scheduling' => 'boolean',
     ];
 
     // Relationships

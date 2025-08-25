@@ -45,7 +45,7 @@ class SocialMediaManager
             try {
                 $service = $this->getService($platform);
                 $account = SocialAccount::where('user_id', $post->user_id)
-                    ->where('platform', $platform)
+                    ->where('slug', $platform)
                     ->where('is_active', true)
                     ->first();
 

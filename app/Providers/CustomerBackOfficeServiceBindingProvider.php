@@ -20,6 +20,7 @@ class CustomerBackOfficeServiceBindingProvider extends ServiceProvider
         $this->app->bind(\App\Contracts\Api\V1\CustomerBackOffice\Google\GoogleRedirectInterface::class, \App\Services\Api\V1\CustomerBackOffice\Google\GoogleRedirectService::class);
         $this->app->bind(\App\Contracts\Api\V1\CustomerBackOffice\Google\GoogleCallBackInterface::class, \App\Services\Api\V1\CustomerBackOffice\Google\GoogleCallBackService::class);
         $this->app->bind(\App\Contracts\Api\V1\CustomerBackOffice\Social\GetAuthUrlInterface::class, \App\Services\Api\V1\CustomerBackOffice\Social\GetAuthUrlService::class);
+        $this->app->bind(\App\Contracts\Api\V1\CustomerBackOffice\Social\HandleCallbackInterface::class, \App\Services\Api\V1\CustomerBackOffice\Social\HandleCallbackService::class);
 
     }
 

@@ -62,12 +62,12 @@ class Customer extends Authenticatable implements JWTSubject
 
     public function subscription(): HasOne
     {
-        return $this->hasOne(CustomerSubscription::class)->where('status', 'active');
+        return $this->hasOne(CustomerPlan::class)->where('status', 'active');
     }
 
     public function subscriptions(): HasMany
     {
-        return $this->hasMany(CustomerSubscription::class);
+        return $this->hasMany(CustomerPlan::class);
     }
 
     // Scopes

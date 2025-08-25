@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Model;
 
-class CustomerSubscription extends Model
+class CustomerPlan extends Model
 {
     use HasFactory;
 
@@ -28,7 +28,7 @@ class CustomerSubscription extends Model
 
     public function subscriptionPlan(): BelongsTo
     {
-        return $this->belongsTo(SubscriptionPlan::class);
+        return $this->belongsTo(Plan::class);
     }
 
     // Scopes

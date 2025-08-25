@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('post_insights', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('published_post_id')->constrained('social_posts')->onDelete('cascade');
+            $table->foreignId('social_post_id')->constrained('social_posts')->onDelete('cascade');
             $table->bigInteger('views')->default(0);
             $table->bigInteger('likes')->default(0);
             $table->bigInteger('shares')->default(0);

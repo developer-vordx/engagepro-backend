@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('social_accounts_id')->constrained('social_accounts')->onDelete('cascade');
             $table->foreignId('customer_id')->constrained()->onDelete('cascade');
-            $table->string('platform_user_id');
+            $table->string('identifier');
             $table->string('username');
             $table->string('display_name')->nullable();
             $table->string('profile_picture')->nullable();
@@ -30,7 +30,7 @@ return new class extends Migration
             $table->timestamps();
 
             $table->unique(
-                ['customer_id', 'social_accounts_id', 'platform_user_id'],
+                ['customer_id', 'social_accounts_id', 'identifier'],
                 'cust_acc_custid_socid_puid_unique'
             );
             $table->index('is_active');

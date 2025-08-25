@@ -3,10 +3,12 @@
 namespace App\Library\SocialManager;
 
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Http;
 use App\Models\SocialAccount;
 use App\Models\Post;
 use Exception;
+use Symfony\Component\HttpFoundation\Response as ResponseAlias;
 
 class TikTokService
 {
@@ -17,9 +19,9 @@ class TikTokService
 
     public function __construct()
     {
-        $this->clientId = config('social.tiktok.client_id');
-        $this->clientSecret = config('social.tiktok.client_secret');
-        $this->redirectUri = config('social.tiktok.redirect_uri');
+        $this->clientId = config('services.tiktok.client_id');
+        $this->clientSecret = config('services.tiktok.client_secret');
+        $this->redirectUri = config('services.tiktok.redirect_uri');
     }
 
     /**
@@ -36,18 +38,21 @@ class TikTokService
      */
     public function getAuthorizationUrl(array $scopes = []): string
     {
-        $defaultScopes = ['user.info.basic', 'video.upload', 'video.publish'];
+        $defaultScopes = [
+            'user.info.basic', 'video.upload', 'video.publish'
+        ];
+
         $scopes = empty($scopes) ? $defaultScopes : $scopes;
 
         $params = [
-            'client_key' => $this->clientId,
-            'scope' => implode(',', $scopes),
+            'client_key'    => $this->clientId,
+            'scope'         => implode(',', $scopes),
             'response_type' => 'code',
-            'redirect_uri' => $this->redirectUri,
-            'state' => csrf_token(),
+            'redirect_uri'  => $this->redirectUri,
+            'state'         => csrf_token(),
         ];
 
-        return 'https://www.tiktok.com/auth/authorize/?' . http_build_query($params);
+        return 'https://www.tiktok.com/v2/auth/authorize?' . http_build_query($params);
     }
 
     /**
@@ -57,19 +62,22 @@ class TikTokService
      */
     public function exchangeCodeForToken(string $code): array
     {
-        $response = Http::post("{$this->baseUrl}/oauth/access_token/", [
-            'client_key' => $this->clientId,
+        $response = Http::asForm()->post("https://open.tiktokapis.com/v2/oauth/token/", [
+            'client_key'    => $this->clientId,
             'client_secret' => $this->clientSecret,
-            'code' => $code,
-            'grant_type' => 'authorization_code',
-            'redirect_uri' => $this->redirectUri,
+            'code'          => $code,
+            'grant_type'    => 'authorization_code',
+            'redirect_uri'  => $this->redirectUri,
         ]);
 
-        if (!$response->successful()) {
-            throw new Exception('Failed to exchange code for token: ' . $response->body());
+        $data = $response->json();
+        if (isset($data['error'])) {
+            return [
+                'header_code' => ResponseAlias::HTTP_BAD_REQUEST,
+                'body' => $data['error_description']
+            ];
         }
-
-        return $response->json()['data'];
+        return $data;
     }
 
     /**
@@ -79,7 +87,7 @@ class TikTokService
      */
     public function refreshToken(string $refreshToken): array
     {
-        $response = Http::post("{$this->baseUrl}/oauth/refresh_token/", [
+        $response = Http::post("{$this->baseUrl}/oauth/token/", [
             'client_key' => $this->clientId,
             'client_secret' => $this->clientSecret,
             'grant_type' => 'refresh_token',
@@ -87,7 +95,11 @@ class TikTokService
         ]);
 
         if (!$response->successful()) {
-            throw new Exception('Failed to refresh token: ' . $response->body());
+            return [
+                'header_code' => ResponseAlias::HTTP_EXPECTATION_FAILED,
+                'body' => 'Failed to exchange code for token: ' . $response->body()
+
+            ];
         }
 
         return $response->json()['data'];
@@ -101,7 +113,9 @@ class TikTokService
     {
         try {
             $response = Http::withToken($accessToken)
-                ->get("{$this->baseUrl}/user/info/");
+                ->get("{$this->baseUrl}/v2/user/info/", [
+                    'fields' => 'open_id,display_name'
+                ]);
 
             return $response->successful();
         } catch (Exception $e) {
@@ -118,20 +132,27 @@ class TikTokService
     public function getUserProfile(string $accessToken): array
     {
         $response = Http::withToken($accessToken)
-            ->get("{$this->baseUrl}/user/info/");
+            ->get("{$this->baseUrl}/v2/user/info/", [
+                'fields' => 'open_id,display_name,avatar_url'
+            ]);
 
-        if (!$response->successful()) {
-            throw new Exception('Failed to get user profile: ' . $response->body());
+        $data = $response->json();
+
+        if (isset($data['error']) && !isset($data['data'])) {
+            return [
+                'header_code' => ResponseAlias::HTTP_EXPECTATION_FAILED,
+                'body' => $data['error']['message']
+            ];
         }
 
-        $data = $response->json()['data']['user'];
+        $user = $data['data']['user'] ?? [];
 
         return [
-            'platform_user_id' => $data['open_id'],
-            'username' => $data['display_name'],
-            'profile_picture' => $data['avatar_url'] ?? null,
-            'follower_count' => $data['follower_count'] ?? 0,
-            'following_count' => $data['following_count'] ?? 0,
+            'identifier' => $user['open_id'] ?? null,
+            'username' => $user['display_name'] ?? null,
+            'profile_picture' => $user['avatar_url'] ?? null,
+            'follower_count' => $user['follower_count'] ?? 0,
+            'following_count' => $user['following_count'] ?? 0,
         ];
     }
 
@@ -147,7 +168,7 @@ class TikTokService
     {
         // Step 1: Initialize upload
         $initResponse = Http::withToken($accessToken)
-            ->post("{$this->baseUrl}/share/video/init/", [
+            ->post("{$this->baseUrl}/v2/upload/video/init/", [
                 'source_info' => [
                     'source' => 'FILE_UPLOAD',
                     'video_size' => filesize($filePath),
@@ -157,7 +178,10 @@ class TikTokService
             ]);
 
         if (!$initResponse->successful()) {
-            throw new Exception('Failed to initialize upload: ' . $initResponse->body());
+            return [
+                'header_code' => ResponseAlias::HTTP_EXPECTATION_FAILED,
+                'body' => 'Failed to initialize upload: ' . $initResponse->body()
+            ];
         }
 
         $uploadData = $initResponse->json()['data'];
@@ -196,15 +220,19 @@ class TikTokService
 
         // Publish the post
         $response = Http::withToken($account->access_token)
-            ->post("{$this->baseUrl}/share/video/publish/", [
+            ->post("{$this->baseUrl}/v2/post/publish/video/", [
+//                'post_info' => [
+//                    'title' => $post->title ?? '',
+//                    'description' => $post->description ?? '',
+//                    'privacy_level' => 'SELF_ONLY', // or PUBLIC_TO_EVERYONE
+//                    'disable_duet' => false,
+//                    'disable_comment' => false,
+//                    'disable_stitch' => false,
+//                    'video_cover_timestamp_ms' => 1000,
+//                ],
                 'post_info' => [
-                    'title' => $post->title ?? '',
-                    'description' => $post->description ?? '',
-                    'privacy_level' => 'SELF_ONLY', // or PUBLIC_TO_EVERYONE
-                    'disable_duet' => false,
-                    'disable_comment' => false,
-                    'disable_stitch' => false,
-                    'video_cover_timestamp_ms' => 1000,
+                    'text' => $post->description ?? '',
+                    'privacy_level' => 'SELF_ONLY',
                 ],
                 'source_info' => [
                     'source' => 'FILE_UPLOAD',
@@ -213,7 +241,10 @@ class TikTokService
             ]);
 
         if (!$response->successful()) {
-            throw new Exception('Failed to publish post: ' . $response->body());
+            return [
+                'header_code' => ResponseAlias::HTTP_EXPECTATION_FAILED,
+                'body' => 'Failed to initialize upload: ' . $response->body()
+            ];
         }
 
         $result = $response->json()['data'];
@@ -234,14 +265,15 @@ class TikTokService
     public function getPostAnalytics(SocialAccount $account, string $platformPostId): array
     {
         $response = Http::withToken($account->access_token)
-            ->get("{$this->baseUrl}/video/query/", [
-                'filters' => [
-                    'video_ids' => [$platformPostId]
-                ]
+            ->get("{$this->baseUrl}/v2/video/query/", [
+                'video_ids' => $platformPostId
             ]);
 
         if (!$response->successful()) {
-            throw new Exception('Failed to get analytics: ' . $response->body());
+            return [
+                'header_code' => ResponseAlias::HTTP_EXPECTATION_FAILED,
+                'body' => 'Failed to get analytics: ' . $response->body()
+            ];
         }
 
         $video = $response->json()['data']['videos'][0] ?? [];

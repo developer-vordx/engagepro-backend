@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Model;
 
-class SubscriptionPlan extends Model
+class Plan extends Model
 {
     use HasFactory;
 
@@ -22,16 +22,17 @@ class SubscriptionPlan extends Model
         'max_posts_per_month' => 'integer',
         'max_file_size_mb' => 'integer',
         'analytics_retention_days' => 'integer',
+        'duration' => 'boolean',
     ];
 
     public function subscriptionFeatures(): HasMany
     {
-        return $this->hasMany(SubscriptionFeature::class);
+        return $this->hasMany(PlanFeature::class);
     }
 
     public function customerSubscriptions(): HasMany
     {
-        return $this->hasMany(CustomerSubscription::class);
+        return $this->hasMany(CustomerPlan::class);
     }
 
     // Scopes
@@ -42,7 +43,7 @@ class SubscriptionPlan extends Model
 
     public function scopeByBillingCycle($query, string $cycle)
     {
-        return $query->where('billing_cycle', $cycle);
+        return $query->where('type', $cycle);
     }
 
     // Helper Methods
@@ -61,7 +62,7 @@ class SubscriptionPlan extends Model
 
     public function getMonthlyPrice(): float
     {
-        return match ($this->billing_cycle) {
+        return match ($this->type) {
             'yearly' => $this->price / 12,
             default => $this->price,
         };
@@ -69,7 +70,7 @@ class SubscriptionPlan extends Model
 
     public function getYearlyDiscount(): float
     {
-        if ($this->billing_cycle === 'yearly') {
+        if ($this->type === 'yearly') {
             $monthlyEquivalent = $this->getMonthlyPrice() * 12;
             return (($monthlyEquivalent - $this->price) / $monthlyEquivalent) * 100;
         }

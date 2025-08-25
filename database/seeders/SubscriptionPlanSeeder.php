@@ -2,8 +2,8 @@
 
 namespace Database\Seeders;
 
-use App\Models\SubscriptionPlan;
-use App\Models\SubscriptionFeature;
+use App\Models\Plan;
+use App\Models\PlanFeature;
 use Illuminate\Database\Seeder;
 
 class SubscriptionPlanSeeder extends Seeder
@@ -16,7 +16,8 @@ class SubscriptionPlanSeeder extends Seeder
                 'slug' => 'free',
                 'description' => 'Perfect for getting started with social media management',
                 'price' => 0.00,
-                'billing_cycle' => 'monthly',
+                'type' => 'month',
+                'duration'=> 2,
                 'features' => [
                     '1 social account per platform',
                     '10 posts per month',
@@ -29,7 +30,8 @@ class SubscriptionPlanSeeder extends Seeder
                 'slug' => 'starter',
                 'description' => 'Great for small businesses and content creators',
                 'price' => 19.99,
-                'billing_cycle' => 'monthly',
+                'type' => 'month',
+                'duration'=> 1,
                 'features' => [
                     '2 social accounts per platform',
                     '50 posts per month',
@@ -43,7 +45,8 @@ class SubscriptionPlanSeeder extends Seeder
                 'slug' => 'professional',
                 'description' => 'Perfect for growing businesses and agencies',
                 'price' => 49.99,
-                'billing_cycle' => 'monthly',
+                'type' => 'month',
+                'duration'=> 2,
                 'features' => [
                     '5 social accounts per platform',
                     '200 posts per month',
@@ -58,7 +61,8 @@ class SubscriptionPlanSeeder extends Seeder
                 'slug' => 'enterprise',
                 'description' => 'For large organizations with extensive social media needs',
                 'price' => 199.99,
-                'billing_cycle' => 'monthly',
+                'type' => 'month',
+                'duration'=> 4,
                 'features' => [
                     '20 social accounts per platform',
                     '1000 posts per month',
@@ -75,15 +79,15 @@ class SubscriptionPlanSeeder extends Seeder
             $features = $planData['features'];
             unset($planData['features']);
 
-            $plan = SubscriptionPlan::updateOrCreate(
+            $plan = Plan::updateOrCreate(
                 ['slug' => $planData['slug']],
                 $planData
             );
 
             // Create subscription features
             foreach ($features as $feature) {
-                SubscriptionFeature::updateOrCreate([
-                    'subscription_plan_id' => $plan->id,
+                PlanFeature::updateOrCreate([
+                    'plan_id' => $plan->id,
                     'features' => $feature,
                 ], [
                     'description' => $feature,

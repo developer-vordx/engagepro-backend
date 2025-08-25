@@ -21,10 +21,10 @@ class GetAuthUrlService implements GetAuthUrlInterface
     public function handle($request, $platform)
     {
         try {
-            $user = Auth::guard('customer')->user();
+            $customer = Auth::guard('customer')->user();
 
             // Check if user can add more accounts for this platform
-            if (!$this->canAddAccount($user, $platform)) {
+            if (!$this->canAddAccount($customer, $platform)) {
                 return Helper::response(
                     ResponseAlias::$statusTexts[ResponseAlias::HTTP_FORBIDDEN],
                     'Account limit reached for this platform. Upgrade your subscription to add more accounts.',
@@ -42,7 +42,10 @@ class GetAuthUrlService implements GetAuthUrlInterface
 
             return Helper::response(
                 ResponseAlias::$statusTexts[ResponseAlias::HTTP_OK],
-                ['auth_url' => $authUrl, 'platform' => $platform],
+                [
+                    'auth_url' => $authUrl,
+                    'platform' => $platform
+                ],
                 ResponseAlias::HTTP_OK);
 
         } catch (\Exception $e) {
@@ -53,15 +56,15 @@ class GetAuthUrlService implements GetAuthUrlInterface
     /**
      * Check if user can add more accounts for a platform
      */
-    private function canAddAccount($user, string $platform): bool
+    private function canAddAccount($customer, string $platform): bool
     {
         $currentCount = CustomerAccount::whereHas('socialAccount', function ($q) use ($platform) {
-            $q->where('platform', $platform);
+            $q->where('slug', $platform);
         })
-            ->where('user_id', $user->id)
+            ->where('customer_id', $customer->id)
             ->count();
 
-        $maxAccounts = $user->subscriptionPlan?->max_social_accounts_per_platform ?? 1;
+        $maxAccounts = $customer->subscriptionPlan?->max_social_accounts_per_platform ?? 1;
 
         return $currentCount < $maxAccounts;
     }

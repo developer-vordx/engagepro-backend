@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Model;
 
-class SubscriptionFeature extends Model
+class PlanFeature extends Model
 {
     use HasFactory;
 
@@ -16,13 +16,13 @@ class SubscriptionFeature extends Model
 
     public function subscriptionPlan(): BelongsTo
     {
-        return $this->belongsTo(SubscriptionPlan::class);
+        return $this->belongsTo(Plan::class);
     }
 
     // Scopes
     public function scopeByPlan($query, int $planId)
     {
-        return $query->where('subscription_plan_id', $planId);
+        return $query->where('plan_id', $planId);
     }
 
     // Helper Methods
