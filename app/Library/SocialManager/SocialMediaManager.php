@@ -93,10 +93,6 @@ class SocialMediaManager
                 ];
 
             } catch (\Exception $e) {
-                Log::error("Failed to publish to {$platform}", [
-                    'post_id' => $post->id,
-                    'error' => $e->getMessage(),
-                ]);
 
                 $results[$platform] = [
                     'success' => false,
