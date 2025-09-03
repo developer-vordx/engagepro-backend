@@ -25,7 +25,6 @@ class UpdateProfileService implements UpdateProfileInterface
             ]);
             DB::commit();
             return Helper::response(
-                'Profile Updated',
                 'Profile updated successfully',
                 ResponseAlias::HTTP_OK
             );

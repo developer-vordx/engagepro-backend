@@ -18,7 +18,6 @@ class UpdatePasswordService implements UpdatePasswordInterface
             $checkPassword = Hash::check($request->current_password, $request->customer->password);
             if (!$checkPassword) {
                 return Helper::response(
-                    'Password mismatch',
                     'Provided current password is incorrect',
                     ResponseAlias::HTTP_UNPROCESSABLE_ENTITY
                 );
@@ -27,7 +26,6 @@ class UpdatePasswordService implements UpdatePasswordInterface
             $request->customer->update(['password' => Hash::make($request->password)]);
             DB::commit();
             return Helper::response(
-                'Password updated',
                 'Password updated successfully',
                 ResponseAlias::HTTP_OK
             );

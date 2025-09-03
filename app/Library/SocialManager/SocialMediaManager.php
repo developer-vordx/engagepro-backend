@@ -5,6 +5,9 @@ namespace App\Library\SocialManager;
 use App\Helper;
 use App\Models\Post;
 use App\Models\SocialAccount;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Response;
+use Symfony\Component\HttpFoundation\Response as ResponseAlias;
 
 class SocialMediaManager
 {
@@ -88,8 +91,8 @@ class SocialMediaManager
 
                 $results[$platform] = [
                     'success' => true,
-                    'platform_post_id' => $publishResult['platform_post_id'],
-                    'platform_url' => $publishResult['platform_url'] ?? null,
+                    'platform_post_id' => $publishResult['body']['platform_post_id'],
+                    'platform_url' => $publishResult['body']['platform_url'] ?? null,
                 ];
 
             } catch (\Exception $e) {
@@ -122,24 +125,32 @@ class SocialMediaManager
         return $filtered;
     }
 
-    public function refreshAllTokens(SocialAccount $account): bool|\Illuminate\Http\JsonResponse
+    public function refreshAllTokens(SocialAccount $account): bool|JsonResponse|array
     {
         try {
-            $service = $this->getService($account->platform);
+            $service = $this->getService($account->slug);
 
             if (!$account->refresh_token) {
-                return false;
+                return [
+                    'header_code' => ResponseAlias::HTTP_EXPECTATION_FAILED,
+                    'body' => 'No refresh token found for the account.',
+                ];
             }
-
             $tokenData = $service->refreshToken($account->refresh_token);
 
+            if ($tokenData['header_code'] != ResponseAlias::HTTP_OK) {
+                return $tokenData;
+            }
             $account->update([
-                'access_token' => $tokenData['access_token'],
-                'refresh_token' => $tokenData['refresh_token'] ?? $account->refresh_token,
-                'expires_at' => now()->addSeconds($tokenData['expires_in']),
+                'access_token' => $tokenData['body']['access_token'],
+                'refresh_token' => $tokenData['body']['refresh_token'] ?? $account->refresh_token,
+                'expires_at' => now()->addSeconds($tokenData['body']['expires_in']),
             ]);
 
-            return true;
+            return [
+                'header_code' => ResponseAlias::HTTP_OK,
+                'body' => true,
+            ];
         } catch (\Exception $e) {
             return Helper::errors($e);
         }

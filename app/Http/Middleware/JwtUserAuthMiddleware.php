@@ -24,7 +24,7 @@ class JwtUserAuthMiddleware
         try {
             $user = Auth::guard('user')->authenticate();
         } catch (\Exception $e) {
-            return Helper::response('Invalid Token ', 'Authentication token is invalid or expired', Response::HTTP_UNAUTHORIZED);
+            return Helper::response('Authentication token is invalid or expired', Response::HTTP_UNAUTHORIZED);
         }
         $request->merge(['user' => $user]);
         return $next($request);

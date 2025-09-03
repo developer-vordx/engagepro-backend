@@ -1,26 +1,37 @@
 <?php
+
 namespace App\Library\SocialManager;
 
 use Symfony\Component\HttpFoundation\Response as ResponseAlias;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use App\Models\CustomerAccount;
+use App\Models\SocialAccount;
 use Random\RandomException;
 use App\Models\Post;
 use Carbon\Carbon;
-use Exception;
+use App\Helper;
 
 class TikTokService
 {
     private string $clientId;
     private string $clientSecret;
     private string $redirectUri;
-    private string $baseUrl = 'https://open.tiktokapis.com'; // Updated to new API base URL
+    private string $baseUrl;
+    private mixed $scopes;
+    private string $platform;
+    private mixed $supportedMediaTypes;
 
     public function __construct()
     {
+        $platForm = SocialAccount::where('slug', 'tiktok')->first();
+        $this->baseUrl = $platForm->url;
+        $this->scopes = $platForm->scopes;
         $this->clientId = config('services.tiktok.client_id');
         $this->clientSecret = config('services.tiktok.client_secret');
         $this->redirectUri = config('services.tiktok.redirect_uri');
+        $this->platform = $platForm->slug;
+        $this->supportedMediaTypes = $platForm->supported_media_types;
     }
 
     /**
@@ -32,31 +43,34 @@ class TikTokService
     }
 
     /**
-     * Fetch App-level Client Access Token (for Research API calls)
+     * Helper function to return error response
+     * @param int $statusCode
+     * @param string $message
+     * @return array
      */
-    public function getClientAccessToken(): ?string
+    private function errorResponse(int $statusCode, string $message): array
     {
-        try {
-            $response = Http::asForm()
-                ->withHeaders([
-                    'Cache-Control' => 'no-cache',
-                ])
-                ->post("{$this->baseUrl}/v2/oauth/token/", [
-                    'client_key' => $this->clientId,
-                    'client_secret' => $this->clientSecret,
-                    'grant_type' => 'client_credentials',
-                ]);
+        return [
+            'header_code' => $statusCode,
+            'body' => $message
+        ];
+    }
 
-            if (!$response->successful()) {
-                return null;
-            }
+    /**
+     * Fetch App-level Client Access Token (for Research API calls)
+     * @return array
+     * @throws ConnectionException
+     */
+    public function getClientAccessToken(): array
+    {
+        $headers = ['Cache-Control' => 'no-cache'];
+        $data = [
+            'client_key' => $this->clientId,
+            'client_secret' => $this->clientSecret,
+            'grant_type' => 'client_credentials',
+        ];
 
-            $data = $response->json();
-
-            return $data['access_token'] ?? null;
-        } catch (Exception $e) {
-            return null;
-        }
+        return Helper::makeHttpRequest('POST', "{$this->baseUrl}/v2/oauth/token/", $data, $headers, true);
     }
 
     /**
@@ -67,15 +81,7 @@ class TikTokService
      */
     public function getAuthorizationUrl(array $scopes = []): string
     {
-        $defaultScopes = [
-            'user.info.basic',
-            'user.info.profile',
-            'user.info.stats',
-            'video.list',
-            'video.upload'
-        ];
-
-        $scopes = empty($scopes) ? $defaultScopes : $scopes;
+        $scopes = empty($scopes) ? $this->scopes : $scopes;
         $codeVerifier = bin2hex(random_bytes(64));
         session(['tiktok_code_verifier' => $codeVerifier]);
 
@@ -98,179 +104,143 @@ class TikTokService
      * Exchange authorization code for access token
      * @param string $code
      * @return array
+     * @throws ConnectionException
      */
     public function exchangeCodeForToken(string $code): array
     {
-        try {
-            $codeVerifier = session('tiktok_code_verifier');
+        $codeVerifier = session('tiktok_code_verifier');
 
-            $response = Http::asForm()
-                ->withHeaders([
-                    'Cache-Control' => 'no-cache',
-                ])
-                ->post("{$this->baseUrl}/v2/oauth/token/", [
-                    'client_key' => $this->clientId,
-                    'client_secret' => $this->clientSecret,
-                    'code' => $code,
-                    'grant_type' => 'authorization_code',
-                    'redirect_uri' => $this->redirectUri,
-                    'code_verifier' => $codeVerifier, // Add PKCE code verifier
-                ]);
+        $headers = ['Cache-Control' => 'no-cache'];
+        $data = [
+            'client_key' => $this->clientId,
+            'client_secret' => $this->clientSecret,
+            'code' => $code,
+            'grant_type' => 'authorization_code',
+            'redirect_uri' => $this->redirectUri,
+            'code_verifier' => $codeVerifier,
+        ];
 
-            $data = $response->json();
+        $response = Helper::makeHttpRequest('POST', "{$this->baseUrl}/v2/oauth/token/", $data, $headers, true, $this->platform);
 
-            if (isset($data['error'])) {
-                return [
-                    'header_code' => ResponseAlias::HTTP_BAD_REQUEST,
-                    'body' => $data['error_description'] ?? $data['error']
-                ];
-            }
+        // Clear the code verifier from session
+        session()->forget('tiktok_code_verifier');
 
-            // Clear the code verifier from session
-            session()->forget('tiktok_code_verifier');
-
-            return $data;
-        } catch (Exception $e) {
-            return [
-                'header_code' => ResponseAlias::HTTP_INTERNAL_SERVER_ERROR,
-                'body' => 'Token exchange failed: ' . $e->getMessage()
-            ];
-        }
+        return $response;
     }
 
     /**
      * Refresh access token using refresh token
      * @param string $refreshToken
      * @return array
+     * @throws ConnectionException
      */
     public function refreshToken(string $refreshToken): array
     {
-        try {
-            $response = Http::asForm()
-                ->withHeaders([
-                    'Cache-Control' => 'no-cache',
-                ])
-                ->post("{$this->baseUrl}/v2/oauth/token/", [
-                    'client_key' => $this->clientId,
-                    'client_secret' => $this->clientSecret,
-                    'grant_type' => 'refresh_token',
-                    'refresh_token' => $refreshToken,
-                ]);
+        $headers = ['Cache-Control' => 'no-cache'];
+        $data = [
+            'client_key' => $this->clientId,
+            'client_secret' => $this->clientSecret,
+            'grant_type' => 'refresh_token',
+            'refresh_token' => $refreshToken,
+        ];
 
-            if (!$response->successful()) {
-                return [
-                    'header_code' => ResponseAlias::HTTP_EXPECTATION_FAILED,
-                    'body' => 'Failed to refresh token: ' . $response->body()
-                ];
-            }
+        return Helper::makeHttpRequest('POST', "{$this->baseUrl}/v2/oauth/token/", $data, $headers, true, $this->platform);
 
-            return $response->json();
-        } catch (Exception $e) {
-            return [
-                'header_code' => ResponseAlias::HTTP_INTERNAL_SERVER_ERROR,
-                'body' => 'Token refresh failed: ' . $e->getMessage()
-            ];
-        }
     }
 
     /**
      * Auto-refresh token if needed
      * @param CustomerAccount $account
-     * @return bool
+     * @return array|bool
+     * @throws ConnectionException
      */
-    public function autoRefreshTokenIfNeeded(CustomerAccount $account): bool
+    public function autoRefreshTokenIfNeeded(CustomerAccount $account): array|bool
     {
-        try {
-            // Check if token expires within next 1 hour
-            if ($account->token_expires_at &&
-                Carbon::parse($account->token_expires_at)->subHour()->isPast()) {
+        // Check if token expires within next 1 hour
+        if ($account->token_expires_at && Carbon::parse($account->token_expires_at)->subHour()->isPast()) {
 
-                if (!$account->refresh_token) {
-                    return false;
-                }
-
-                $refreshResult = $this->refreshToken($account->refresh_token);
-
-                if (isset($refreshResult['header_code'])) {
-                    return false;
-                }
-
-                // Update account with new tokens
-                $account->update([
-                    'access_token' => $refreshResult['access_token'],
-                    'refresh_token' => $refreshResult['refresh_token'] ?? $account->refresh_token,
-                    'token_expires_at' => now()->addSeconds($refreshResult['expires_in']),
-                    'last_synced_at' => now()
-                ]);
+            if (!$account->refresh_token) {
+                return [
+                    'header_code' => ResponseAlias::HTTP_FORBIDDEN,
+                    'body' => 'Access token has expired. Please re-authorize.'
+                ];
             }
 
-            return true;
-        } catch (Exception $e) {
-            return false;
+            $refreshResult = $this->refreshToken($account->refresh_token);
+
+            if ($refreshResult['header_code'] != ResponseAlias::HTTP_OK) {
+                return $refreshResult;
+            }
+
+            // Update account with new tokens
+            $account->update([
+                'access_token' => $refreshResult['body']['access_token'],
+                'refresh_token' => $refreshResult['body']['refresh_token'] ?? $account->refresh_token,
+                'token_expires_at' => now()->addSeconds($refreshResult['body']['expires_in']),
+                'last_synced_at' => now()
+            ]);
         }
+        return [
+            'header_code' => ResponseAlias::HTTP_OK,
+            'body' => true
+        ];
     }
 
     /**
      * Validate access token
      * @param string $accessToken
      * @return bool
+     * @throws ConnectionException
      */
     public function validateToken(string $accessToken): bool
     {
-        try {
-            $response = Http::withHeaders([
-                'Authorization' => "Bearer {$accessToken}",
-            ])->get("{$this->baseUrl}/v2/user/info/", [
-                'fields' => 'open_id,display_name'
-            ]);
+        $headers = ['Authorization' => "Bearer {$accessToken}"];
+        $params = ['fields' => 'open_id,display_name'];
 
-            return $response->successful();
-        } catch (Exception $e) {
-            return false;
-        }
+        $response = Helper::makeHttpRequest('GET', "{$this->baseUrl}/v2/user/info/", $params, $headers);
+
+        return $response && $response['success'];
     }
 
     /**
      * Get comprehensive user profile with all available fields
      * @param string $userAccessToken
      * @return array
+     * @throws ConnectionException
      */
     public function getUserProfile(string $userAccessToken): array
     {
-        try {
-            $fields = [
-                'open_id',
-                'union_id',
-                'avatar_url',
-                'avatar_url_100',
-                'avatar_large_url',
-                'display_name',
-                'bio_description',
-                'profile_deep_link',
-                'is_verified',
-                'username',
-                'follower_count',
-                'following_count',
-                'likes_count',
-                'video_count'
-            ];
+        $fields = [
+            'open_id',
+            'union_id',
+            'avatar_url',
+            'avatar_url_100',
+            'avatar_large_url',
+            'display_name',
+            'bio_description',
+            'profile_deep_link',
+            'is_verified',
+            'username',
+            'follower_count',
+            'following_count',
+            'likes_count',
+            'video_count'
+        ];
 
-            $response = Http::withHeaders([
-                'Authorization' => "Bearer {$userAccessToken}",
-            ])->get("{$this->baseUrl}/v2/user/info/", [
-                'fields' => implode(',', $fields)
-            ]);
+        $headers = ['Authorization' => "Bearer {$userAccessToken}"];
+        $params = ['fields' => implode(',', $fields)];
 
-            if (!$response->successful()) {
-                return [
-                    'header_code' => ResponseAlias::HTTP_BAD_REQUEST,
-                    'body' => $response->json()
-                ];
-            }
+        $response = Helper::makeHttpRequest('GET', "{$this->baseUrl}/v2/user/info/", $params, $headers);
 
-            $user = $response->json()['data']['user'] ?? [];
+        if ($response['header_code'] != ResponseAlias::HTTP_OK) {
+            return $response;
+        }
 
-            return [
+        $user = $response['body']['data']['user'] ?? [];
+
+        return [
+            'header_code' => $response['header_code'],
+            'body' => [
                 'identifier' => $user['open_id'] ?? null,
                 'union_id' => $user['union_id'] ?? null,
                 'username' => $user['username'] ?? $user['display_name'] ?? null,
@@ -284,13 +254,8 @@ class TikTokService
                 'following_count' => $user['following_count'] ?? 0,
                 'likes_count' => $user['likes_count'] ?? 0,
                 'video_count' => $user['video_count'] ?? 0,
-            ];
-        } catch (Exception $e) {
-            return [
-                'header_code' => ResponseAlias::HTTP_INTERNAL_SERVER_ERROR,
-                'body' => 'Failed to get user profile: ' . $e->getMessage()
-            ];
-        }
+            ]
+        ];
     }
 
     /**
@@ -299,66 +264,62 @@ class TikTokService
      * @param int $maxCount
      * @param int|null $cursor
      * @return array
+     * @throws ConnectionException
      */
-    public function getUserVideos(string $userAccessToken, int $maxCount = 20, ?int $cursor = null): array
+    public function getUserVideos(string $userAccessToken, int $maxCount = 10, ?int $cursor = null): array
     {
-        try {
-            $fields = [
-                'id',
-                'create_time',
-                'cover_image_url',
-                'share_url',
-                'video_description',
-                'duration',
-                'height',
-                'width',
-                'title',
-                'embed_html',
-                'embed_link',
-                'like_count',
-                'comment_count',
-                'share_count',
-                'view_count'
-            ];
+        $fields = [
+            'id',
+            'create_time',
+            'cover_image_url',
+            'share_url',
+            'video_description',
+            'duration',
+            'height',
+            'width',
+            'title',
+            'embed_html',
+            'embed_link',
+            'like_count',
+            'comment_count',
+            'share_count',
+            'view_count'
+        ];
 
-            $params = [
-                'fields' => implode(',', $fields),
-                'max_count' => min($maxCount, 20) // API limit is 20
-            ];
+        // Prepare request body for v2 API
+        $requestBody = [
+            'max_count' => min($maxCount, 20) // API limit is 20, default is 10
+        ];
 
-            if ($cursor) {
-                $params['cursor'] = $cursor;
-            }
+        // Add cursor only if provided
+        if ($cursor !== null) {
+            $requestBody['cursor'] = $cursor;
+        }
 
-            $response = Http::withHeaders([
-                'Authorization' => "Bearer {$userAccessToken}",
-            ])->get("{$this->baseUrl}/v2/video/list/", $params);
+        $headers = [
+            'Authorization' => "Bearer {$userAccessToken}",
+            'Content-Type' => 'application/json'
+        ];
 
-            if (!$response->successful()) {
-                return [
-                    'videos' => [],
-                    'cursor' => null,
-                    'has_more' => false,
-                    'error' => $response->json()
-                ];
-            }
+        // Build URL with fields as query parameters
+        $fieldsQuery = 'fields=' . implode(',', $fields);
+        $url = "https://open.tiktokapis.com/v2/video/list/?{$fieldsQuery}";
 
-            $data = $response->json()['data'] ?? [];
+        $response = Helper::makeHttpRequest('POST', $url, $requestBody, $headers, false, $this->platform);
+        if ($response['header_code'] != ResponseAlias::HTTP_OK) {
+            return $response;
+        }
+        $data = $response['body']['data'] ?? [];
 
-            return [
+        return [
+            'header_code' => $response['header_code'],
+            'body' => [
                 'videos' => $data['videos'] ?? [],
                 'cursor' => $data['cursor'] ?? null,
                 'has_more' => $data['has_more'] ?? false,
                 'total' => count($data['videos'] ?? [])
-            ];
-        } catch (Exception $e) {
-            return [
-                'videos' => [],
-                'cursor' => null,
-                'has_more' => false,
-                'error' => $e->getMessage()
-            ];
-        }
+            ],
+        ];
     }
 
     /**
@@ -366,54 +327,49 @@ class TikTokService
      * @param string $userAccessToken
      * @param array $videoIds
      * @return array
+     * @throws ConnectionException
      */
     public function queryVideos(string $userAccessToken, array $videoIds): array
     {
-        try {
-            $fields = [
-                'id',
-                'create_time',
-                'cover_image_url',
-                'share_url',
-                'video_description',
-                'duration',
-                'height',
-                'width',
-                'title',
-                'embed_html',
-                'embed_link',
-                'like_count',
-                'comment_count',
-                'share_count',
-                'view_count'
-            ];
+        $fields = [
+            'id',
+            'create_time',
+            'cover_image_url',
+            'share_url',
+            'video_description',
+            'duration',
+            'height',
+            'width',
+            'title',
+            'embed_html',
+            'embed_link',
+            'like_count',
+            'comment_count',
+            'share_count',
+            'view_count'
+        ];
 
-            $response = Http::withHeaders([
-                'Authorization' => "Bearer {$userAccessToken}",
-            ])->post("{$this->baseUrl}/v2/video/query/", [
-                'fields' => implode(',', $fields),
-                'video_ids' => $videoIds
-            ]);
+        $headers = ['Authorization' => "Bearer {$userAccessToken}"];
+        $data = [
+            'fields' => implode(',', $fields),
+            'video_ids' => $videoIds
+        ];
 
-            if (!$response->successful()) {
-                return [
-                    'videos' => [],
-                    'error' => $response->json()
-                ];
-            }
+        $response = Helper::makeHttpRequest('POST', "{$this->baseUrl}/v2/video/query/", $data, $headers,false, $this->platform);
 
-            $data = $response->json()['data'] ?? [];
-
-            return [
-                'videos' => $data['videos'] ?? [],
-                'total' => count($data['videos'] ?? [])
-            ];
-        } catch (Exception $e) {
-            return [
-                'videos' => [],
-                'error' => $e->getMessage()
-            ];
+        if ($response['header_code'] != ResponseAlias::HTTP_OK) {
+            return $response;
         }
+
+        $responseData = $response['body']['data'] ?? [];
+
+        return [
+            'header_code' => $response['header_code'],
+            'body' => [
+                'videos' => $responseData['videos'] ?? [],
+                'total' => count($responseData['videos'] ?? [])
+            ]
+        ];
     }
 
     /**
@@ -422,69 +378,70 @@ class TikTokService
      * @param string $filePath
      * @param array $metadata
      * @return array
-     * @throws Exception
+     * @throws ConnectionException
      */
     public function uploadMedia(string $accessToken, string $filePath, array $metadata = []): array
     {
-        try {
-            // Step 1: Initialize upload
-            $fileSize = filesize($filePath);
-            $chunkSize = min(10 * 1024 * 1024, $fileSize); // 10MB or file size if smaller
-            $totalChunks = ceil($fileSize / $chunkSize);
+        // Step 1: Initialize upload
+        $fileSize = filesize($filePath);
+        $chunkSize = min(10 * 1024 * 1024, $fileSize); // 10MB or file size if smaller
+        $totalChunks = ceil($fileSize / $chunkSize);
 
-            $initResponse = Http::withHeaders([
-                'Authorization' => "Bearer {$accessToken}",
-                'Content-Type' => 'application/json'
-            ])->post("{$this->baseUrl}/v2/post/publish/video/init/", [
-                'post_info' => [
-                    'title' => $metadata['title'] ?? '',
-                    'description' => $metadata['description'] ?? '',
-                    'privacy_level' => $metadata['privacy_level'] ?? 'SELF_ONLY',
-                    'disable_duet' => $metadata['disable_duet'] ?? false,
-                    'disable_comment' => $metadata['disable_comment'] ?? false,
-                    'disable_stitch' => $metadata['disable_stitch'] ?? false,
-                    'video_cover_timestamp_ms' => $metadata['cover_timestamp'] ?? 1000,
-                ],
-                'source_info' => [
-                    'source' => 'FILE_UPLOAD',
-                    'video_size' => $fileSize,
-                    'chunk_size' => $chunkSize,
-                    'total_chunk_count' => $totalChunks,
-                ]
-            ]);
+        $headers = [
+            'Authorization' => "Bearer {$accessToken}",
+            'Content-Type' => 'application/json'
+        ];
 
-            if (!$initResponse->successful()) {
-                return [
-                    'header_code' => ResponseAlias::HTTP_EXPECTATION_FAILED,
-                    'body' => 'Failed to initialize upload: ' . $initResponse->body()
-                ];
-            }
+        $data = [
+            'post_info' => [
+                'title' => $metadata['title'] ?? '',
+                'description' => $metadata['description'] ?? '',
+                'privacy_level' => $metadata['privacy_level'] ?? 'SELF_ONLY',
+                'disable_duet' => $metadata['disable_duet'] ?? false,
+                'disable_comment' => $metadata['disable_comment'] ?? false,
+                'disable_stitch' => $metadata['disable_stitch'] ?? false,
+                'video_cover_timestamp_ms' => $metadata['cover_timestamp'] ?? 1000,
+            ],
+            'source_info' => [
+                'source' => 'FILE_UPLOAD',
+                'video_size' => $fileSize,
+                'chunk_size' => $chunkSize,
+                'total_chunk_count' => $totalChunks,
+            ]
+        ];
 
-            $uploadData = $initResponse->json()['data'];
-            $publishId = $uploadData['publish_id'];
-            $uploadUrl = $uploadData['upload_url'];
+        $response = Helper::makeHttpRequest('POST', "{$this->baseUrl}/v2/post/publish/video/init/", $data, $headers);
 
-            // Step 2: Upload video file
-            $uploadResponse = Http::withHeaders([
-                'Authorization' => "Bearer {$accessToken}",
-            ])->attach(
-                'video',
-                file_get_contents($filePath),
-                basename($filePath)
-            )->post($uploadUrl);
+        if ($response['header_code'] != ResponseAlias::HTTP_OK) {
+            return $response;
+        }
 
-            if (!$uploadResponse->successful()) {
-                throw new Exception('Failed to upload video: ' . $uploadResponse->body());
-            }
+        $uploadData = $response['body']['data'];
+        $publishId = $uploadData['publish_id'];
+        $uploadUrl = $uploadData['upload_url'];
 
-            return [
+        $uploadHeaders = [
+            'Authorization' => "Bearer {$accessToken}",
+        ];
+
+        $uploadData = [
+            'video' => new \CURLFile($filePath, mime_content_type($filePath), basename($filePath))
+        ];
+
+        $uploadResponse = Helper::makeHttpRequest('POST', $uploadUrl, $uploadData, $uploadHeaders);
+
+        if ($uploadResponse['header_code'] != ResponseAlias::HTTP_OK) {
+            return $uploadResponse;
+        }
+
+        return [
+            'header_code' => $uploadResponse['header_code'],
+            'body' => [
                 'publish_id' => $publishId,
                 'upload_url' => $uploadUrl,
                 'status' => 'uploaded'
-            ];
-        } catch (Exception $e) {
-            throw $e;
-        }
+            ]
+        ];
     }
 
     /**
@@ -492,72 +449,65 @@ class TikTokService
      * @param CustomerAccount $account
      * @param Post $post
      * @return array
-     * @throws Exception
+     * @throws ConnectionException
      */
     public function publishPost(CustomerAccount $account, Post $post): array
     {
-        try {
-            // Auto-refresh token if needed
-            if (!$this->autoRefreshTokenIfNeeded($account)) {
-                return [
-                    'header_code' => ResponseAlias::HTTP_UNAUTHORIZED,
-                    'body' => 'Token expired and refresh failed'
-                ];
-            }
+        // Auto-refresh token if needed
+        $autoRefreshToken = $this->autoRefreshTokenIfNeeded($account);
+        if ($autoRefreshToken['header_code'] != ResponseAlias::HTTP_OK) {
+            return $autoRefreshToken;
+        }
 
-            // TikTok only supports single video uploads
-            if (count($post->files) === 0) {
-                return [
-                    'header_code' => ResponseAlias::HTTP_BAD_REQUEST,
-                    'body' => 'No video file provided'
-                ];
-            }
-
-            $videoFile = $post->files->first();
-            $filePath = storage_path('app/' . $videoFile->file_path);
-
-            if (!file_exists($filePath)) {
-                return [
-                    'header_code' => ResponseAlias::HTTP_BAD_REQUEST,
-                    'body' => 'Video file not found'
-                ];
-            }
-
-            // Upload video
-            $uploadResult = $this->uploadMedia($account->access_token, $filePath, [
-                'title' => $post->title ?? '',
-                'description' => $post->description ?? '',
-                'privacy_level' => 'PUBLIC_TO_EVERYONE', // or SELF_ONLY, MUTUAL_FOLLOW_FRIENDS
-                'disable_duet' => false,
-                'disable_comment' => false,
-                'disable_stitch' => false,
-            ]);
-
-            if (isset($uploadResult['header_code'])) {
-                return $uploadResult;
-            }
-
-            // Check publish status
-            $statusResponse = Http::withHeaders([
-                'Authorization' => "Bearer {$account->access_token}",
-            ])->post("{$this->baseUrl}/v2/post/publish/status/fetch/", [
-                'publish_id' => $uploadResult['publish_id']
-            ]);
-
-            $statusData = $statusResponse->successful() ? $statusResponse->json()['data'] : [];
-
+        // TikTok only supports single video uploads
+        if (count($post->files) === 0) {
             return [
-                'platform_post_id' => $uploadResult['publish_id'],
-                'status' => $statusData['status'] ?? 'processing',
-                'platform_url' => $statusData['share_url'] ?? null,
-                'publish_id' => $uploadResult['publish_id']
-            ];
-        } catch (Exception $e) {
-            return [
-                'header_code' => ResponseAlias::HTTP_INTERNAL_SERVER_ERROR,
-                'body' => 'Failed to publish post: ' . $e->getMessage()
+                'header_code' => ResponseAlias::HTTP_BAD_REQUEST,
+                'body' => 'No video file provided.'
             ];
         }
+
+        $videoFile = $post->files->first();
+        $filePath = storage_path('app/' . $videoFile->file_path);
+
+        if (!file_exists($filePath)) {
+            return [
+                'header_code' => ResponseAlias::HTTP_BAD_REQUEST,
+                'body' => 'No video file provided.'
+            ];
+        }
+
+        // Upload video
+        $uploadResult = $this->uploadMedia($account->access_token, $filePath, [
+            'title' => $post->title ?? '',
+            'description' => $post->description ?? '',
+            'privacy_level' => 'PUBLIC_TO_EVERYONE', // or SELF_ONLY, MUTUAL_FOLLOW_FRIENDS
+            'disable_duet' => false,
+            'disable_comment' => false,
+            'disable_stitch' => false,
+        ]);
+
+        if ($uploadResult['header_code'] != ResponseAlias::HTTP_OK) {
+            return $uploadResult;
+        }
+
+        // Check publish status
+        $headers = ['Authorization' => "Bearer {$account->access_token}"];
+        $data = ['publish_id' => $uploadResult['body']['publish_id']];
+
+        $statusResponse = Helper::makeHttpRequest('POST', "{$this->baseUrl}/v2/post/publish/status/fetch/", $data, $headers);
+
+        $statusData = $statusResponse && $statusResponse['success'] ? $statusResponse['data']['data'] : [];
+
+        return [
+            'header_code' => $statusResponse['header_code'],
+            'body' => [
+                'platform_post_id' => $uploadResult['body']['publish_id'],
+                'status' => $statusData['status'] ?? 'processing',
+                'platform_url' => $statusData['share_url'] ?? null,
+                'publish_id' => $uploadResult['body']['publish_id']
+            ]
+        ];
     }
 
     /**
@@ -565,91 +515,89 @@ class TikTokService
      * @param CustomerAccount $account
      * @param string $platformPostId
      * @return array
+     * @throws ConnectionException
      */
     public function getPostAnalytics(CustomerAccount $account, string $platformPostId): array
     {
-        try {
-            // Auto-refresh token if needed
-            $this->autoRefreshTokenIfNeeded($account);
-
-            $response = Http::withHeaders([
-                'Authorization' => "Bearer {$account->access_token}",
-            ])->post("{$this->baseUrl}/v2/video/query/", [
-                'fields' => 'id,like_count,comment_count,share_count,view_count,create_time,video_description,cover_image_url,share_url,duration',
-                'video_ids' => [$platformPostId]
-            ]);
-
-            if (!$response->successful()) {
-                return [
-                    'header_code' => ResponseAlias::HTTP_EXPECTATION_FAILED,
-                    'body' => 'Failed to get analytics: ' . $response->body()
-                ];
-            }
-
-            $videos = $response->json()['data']['videos'] ?? [];
-            $video = $videos[0] ?? [];
-
-            if (empty($video)) {
-                return [
-                    'header_code' => ResponseAlias::HTTP_NOT_FOUND,
-                    'body' => 'Video not found'
-                ];
-            }
-
-            // Calculate engagement rate
-            $totalEngagement = ($video['like_count'] ?? 0) +
-                ($video['comment_count'] ?? 0) +
-                ($video['share_count'] ?? 0);
-            $views = $video['view_count'] ?? 1;
-            $engagementRate = $views > 0 ? round(($totalEngagement / $views) * 100, 2) : 0;
-
-            return [
-                'views' => $video['view_count'] ?? 0,
-                'likes' => $video['like_count'] ?? 0,
-                'shares' => $video['share_count'] ?? 0,
-                'comments' => $video['comment_count'] ?? 0,
-                'saves' => 0, // TikTok API doesn't provide saves count
-                'engagement_rate' => $engagementRate,
-                'duration' => $video['duration'] ?? 0,
-                'create_time' => $video['create_time'] ?? null,
-                'cover_image_url' => $video['cover_image_url'] ?? null,
-                'share_url' => $video['share_url'] ?? null,
-                'additional_metrics' => [
-                    'total_engagement' => $totalEngagement,
-                    'video_id' => $video['id'] ?? null,
-                    'description' => $video['video_description'] ?? null
-                ]
-            ];
-        } catch (Exception $e) {
-            return [
-                'header_code' => ResponseAlias::HTTP_INTERNAL_SERVER_ERROR,
-                'body' => 'Failed to get analytics: ' . $e->getMessage()
-            ];
+        // Auto-refresh token if needed
+        $autoRefreshToken = $this->autoRefreshTokenIfNeeded($account);
+        if ($autoRefreshToken['header_code'] != ResponseAlias::HTTP_OK) {
+            return $autoRefreshToken;
         }
+
+
+        $headers = ['Authorization' => "Bearer {$account->access_token}"];
+        $data = [
+            'fields' => 'id,like_count,comment_count,share_count,view_count,create_time,video_description,cover_image_url,share_url,duration',
+            'video_ids' => [$platformPostId]
+        ];
+
+        return Helper::makeHttpRequest('POST', "{$this->baseUrl}/v2/video/query/", $data, $headers);
+
+//        if (!$response || !$response['success']) {
+//            return $this->errorResponse(
+//                ResponseAlias::HTTP_EXPECTATION_FAILED,
+//                'Failed to get analytics: ' . ($response['body'] ?? 'Unknown error')
+//            );
+//        }
+//
+//        $videos = $response['data']['data']['videos'] ?? [];
+//        $video = $videos[0] ?? [];
+//
+//        if (empty($video)) {
+//            return $this->errorResponse(
+//                ResponseAlias::HTTP_NOT_FOUND,
+//                'Video not found'
+//            );
+//        }
+//
+//        // Calculate engagement rate
+//        $totalEngagement = ($video['like_count'] ?? 0) +
+//            ($video['comment_count'] ?? 0) +
+//            ($video['share_count'] ?? 0);
+//        $views = $video['view_count'] ?? 1;
+//        $engagementRate = $views > 0 ? round(($totalEngagement / $views) * 100, 2) : 0;
+//
+//        return [
+//            'views' => $video['view_count'] ?? 0,
+//            'likes' => $video['like_count'] ?? 0,
+//            'shares' => $video['share_count'] ?? 0,
+//            'comments' => $video['comment_count'] ?? 0,
+//            'saves' => 0, // TikTok API doesn't provide saves count
+//            'engagement_rate' => $engagementRate,
+//            'duration' => $video['duration'] ?? 0,
+//            'create_time' => $video['create_time'] ?? null,
+//            'cover_image_url' => $video['cover_image_url'] ?? null,
+//            'share_url' => $video['share_url'] ?? null,
+//            'additional_metrics' => [
+//                'total_engagement' => $totalEngagement,
+//                'video_id' => $video['id'] ?? null,
+//                'description' => $video['video_description'] ?? null
+//            ]
+//        ];
     }
 
     /**
      * Revoke user access token
      * @param string $accessToken
-     * @return bool
+     * @return array
+     * @throws ConnectionException
      */
-    public function revokeAccess(string $accessToken): bool
+    public function revokeAccess(string $accessToken): array
     {
-        try {
-            $response = Http::asForm()
-                ->withHeaders([
-                    'Cache-Control' => 'no-cache',
-                ])
-                ->post("{$this->baseUrl}/v2/oauth/revoke/", [
-                    'client_key' => $this->clientId,
-                    'client_secret' => $this->clientSecret,
-                    'token' => $accessToken,
-                ]);
+        $headers = ['Cache-Control' => 'no-cache'];
+        $data = [
+            'client_key' => $this->clientId,
+            'client_secret' => $this->clientSecret,
+            'token' => $accessToken,
+        ];
 
-            return $response->successful();
-        } catch (Exception $e) {
-            return false;
-        }
+        $response = Helper::makeHttpRequest('POST', "{$this->baseUrl}/v2/oauth/revoke/", $data, $headers, true);
+
+        return [
+            'header_code' => $response['header_code'],
+            'body' => $response['body']
+        ];
     }
 
     /**
@@ -657,7 +605,7 @@ class TikTokService
      */
     public function getSupportedMediaTypes(): array
     {
-        return ['video']; // TikTok only supports videos
+        return $this->supportedMediaTypes; // TikTok only supports videos
     }
 
     /**

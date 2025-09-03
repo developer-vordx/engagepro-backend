@@ -40,7 +40,7 @@ class GoogleCallBackService implements GoogleCallBackInterface
         } catch (\Exception $e) {
             // Check if it's the "link expired" type of error
             if (str_contains($e->getMessage(), 'invalid_grant')) {
-                return Helper::response('Link Expired', 'This Google sign-in link has expired. Please try logging in again.', ResponseAlias::HTTP_GONE);
+                return Helper::response('This Google sign-in link has expired. Please try logging in again.', ResponseAlias::HTTP_GONE);
             }
             return Helper::errors($e);
         }

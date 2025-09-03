@@ -59,7 +59,7 @@ class GoogleAuthController extends Controller
                 'token' => $token,
             ];
 
-            return Helper::response('User logged in successfully via Google', $response, ResponseAlias::HTTP_OK);
+            return Helper::response($response, ResponseAlias::HTTP_OK);
         } catch (\Exception $e) {
 
             return response()->json(['error' => $e->getMessage()], 400);

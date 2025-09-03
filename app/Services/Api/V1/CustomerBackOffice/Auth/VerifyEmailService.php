@@ -20,10 +20,10 @@ class VerifyEmailService implements VerifyEmailInterface
             if ($checkToken) {
                 $queryCheck->delete();
                 Customer::where('email', $request->email)->update(['email_verified_at' => now()]);
-                return Helper::response('Email verified.', 'Email verified successfully', ResponseAlias::HTTP_OK);
+                return Helper::response('Email verified successfully', ResponseAlias::HTTP_OK);
             }
 
-            return Helper::response('Link expired.', 'Request url is not available or expired', ResponseAlias::HTTP_GONE);
+            return Helper::response('Request url is not available or expired', ResponseAlias::HTTP_GONE);
 
         } catch (\Exception $e) {
             return Helper::errors($e);

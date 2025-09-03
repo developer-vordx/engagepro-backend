@@ -20,7 +20,7 @@ class LoginService extends BaseService implements LoginInterface
         try {
 
             if (!$token = Auth::guard('customer')->attempt($request->only('email', 'password'))) {
-                return Helper::response('Unauthorized', 'Invalid credentials provided', ResponseAlias::HTTP_UNAUTHORIZED);
+                return Helper::response('Invalid credentials provided', ResponseAlias::HTTP_UNAUTHORIZED);
             }
 
             $response = [
@@ -28,7 +28,7 @@ class LoginService extends BaseService implements LoginInterface
                 'token' => $token,
             ];
 
-            return Helper::response('User logged in successfully', $response, ResponseAlias::HTTP_OK);
+            return Helper::response($response, ResponseAlias::HTTP_OK);
         } catch (\Exception $exception) {
             return Helper::errors($exception);
         }

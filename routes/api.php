@@ -2,7 +2,6 @@
 
 
 use App\Http\Controllers\Api\V1\CustomerBackOffice\Social\SocialController;
-use GuzzleHttp\Client;
 use Symfony\Component\HttpFoundation\Response as ResponseAlias;
 use Illuminate\Support\Facades\Route;
 use App\Helper;
@@ -71,9 +70,16 @@ Route::prefix('v1')->middleware(['request_logs'])->group(function () {
 //    });
 
 
+    Route::get('/update' , function (){
+        $response = (new App\Library\SocialManager\TikTokService)->getUserVideos('act.fkyMNKY7TgbUGW14kW3B5GoEeMl80KnCs6g7mroLMToOmHoc2gj2FROISHXd!5879.va');
+    dd($response);
+
+    });
+
+    Route::any('{any}', function () {
+        return Helper::response('Requested api or method not found.', ResponseAlias::HTTP_NOT_FOUND);
+    })->where('any', '.*');
 });
 
 
-Route::any('{any}', function () {
-    return Helper::response('Not found', 'Requested api or method not found.', ResponseAlias::HTTP_NOT_FOUND);
-})->where('any', '.*');
+

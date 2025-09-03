@@ -31,7 +31,7 @@ class SignUpService extends BaseService implements SignUpInterface
                 'user' => $user,
                 'token' => $token,
             ];
-            return Helper::response('User created successfully', $response, ResponseAlias::HTTP_CREATED);
+            return Helper::response($response, ResponseAlias::HTTP_CREATED);
 
         } catch (\Exception $exception) {
             return Helper::errors($exception);

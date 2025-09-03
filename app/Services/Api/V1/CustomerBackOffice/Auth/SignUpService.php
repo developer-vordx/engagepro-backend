@@ -31,7 +31,6 @@ class SignUpService implements SignUpInterface
             EmailVerificationJob::dispatch($customer, $token);
             DB::commit();
             return Helper::response(
-                'User registered successfully.',
                 'Please check your inbox and verify your email.',
                 ResponseAlias::HTTP_CREATED
             );

@@ -13,7 +13,6 @@ class LogoutService implements LogoutInterface
         try {
             auth('customer')->logout();
             return Helper::response(
-                'Logout',
                 'You are successfully logged out',
                 ResponseAlias::HTTP_OK
             );

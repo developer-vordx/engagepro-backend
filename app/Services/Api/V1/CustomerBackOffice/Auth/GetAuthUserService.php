@@ -22,7 +22,7 @@ class GetAuthUserService implements GetAuthUserInterface
                 'avatar' => $authUser->avatar,
 
             ];
-            return Helper::response('User Logged in successfully', $payload, ResponseAlias::HTTP_OK);
+            return Helper::response($payload, ResponseAlias::HTTP_OK);
         } catch (\Exception $e) {
             return Helper::errors($e);
         }

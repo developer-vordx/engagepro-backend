@@ -3,6 +3,8 @@
 namespace App;
 
 use App\DTO\Api\V1\AdminBackOffice\RequestLogsDTO\ErrorLogsDTO;
+use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Support\Facades\Http;
 use Symfony\Component\HttpFoundation\Response as ResponseAlias;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Http\JsonResponse;
@@ -13,15 +15,14 @@ class Helper extends BaseService
 {
 
     /**
-     * @param string $message
      * @param $response
      * @param int $statusCode
      * @return JsonResponse
      */
-    public static function response(string $message, $response, int $statusCode): JsonResponse
+    public static function response($response, int $statusCode): JsonResponse
     {
-        $data = ['message' => $message];
-        if ($statusCode < 400) {
+        $data = ['message' => ResponseAlias::$statusTexts[$statusCode]];
+        if ($statusCode < ResponseAlias::HTTP_BAD_REQUEST) {
             $data['data'] = (array)$response;
         } else {
             $data['errors'] = (array)$response;
@@ -57,5 +58,59 @@ class Helper extends BaseService
                 'errors' => (array)$e->getMessage(),
             ], ResponseAlias::HTTP_INTERNAL_SERVER_ERROR);
         }
+    }
+
+    /**
+     * @param string $method
+     * @param string $url
+     * @param array $data
+     * @param array $headers
+     * @param bool $asForm
+     * @param string $platform
+     * @return array|null
+     * @throws ConnectionException
+     */
+    public static function makeHttpRequest(string $method, string $url, array $data = [], array $headers = [], bool $asForm = false, string $platform = ''): ?array
+    {
+        $httpClient = Http::timeout(30);
+
+        if ($asForm) {
+            $httpClient = $httpClient->asForm();
+        }
+
+        if (!empty($headers)) {
+            $httpClient = $httpClient->withHeaders($headers);
+        }
+
+        $response = match (strtoupper($method)) {
+            'GET' => $httpClient->get($url, $data),
+            'POST' => $httpClient->post($url, $data),
+            'PUT' => $httpClient->put($url, $data),
+            'DELETE' => $httpClient->delete($url, $data),
+            default => null
+        };
+        if ($platform == 'tiktok') {
+            if (isset($response->json()['error']['code']) && $response->json()['error']['code'] != 'ok'){
+                return [
+                    'header_code' => ResponseAlias::HTTP_EXPECTATION_FAILED,
+                    'body' => $response->json()['error']['message'],
+                ];
+            }
+            elseif (isset($response->json()['error_description'])){
+                return [
+                    'header_code' => ResponseAlias::HTTP_EXPECTATION_FAILED,
+                    'body' => $response->json()['error_description'],
+                ];
+            }else{
+                return [
+                    'header_code' => ResponseAlias::HTTP_OK,
+                    'body' => $response->json(),
+                ];
+            }
+        }
+        return [
+            'header_code' => $response->status(),
+            'body' => $response->json(),
+        ];
     }
 }

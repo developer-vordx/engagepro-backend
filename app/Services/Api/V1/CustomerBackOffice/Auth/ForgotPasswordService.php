@@ -29,7 +29,7 @@ class ForgotPasswordService implements ForgotPasswordInterface
                 );
                 ForgotPasswordJob::dispatch($customer, $token);
             }
-            return Helper::response('Forget Password', 'If an account exists we will send you an email to reset your password', ResponseAlias::HTTP_OK);
+            return Helper::response('If an account exists we will send you an email to reset your password', ResponseAlias::HTTP_OK);
         } catch (\Exception $e) {
             return Helper::errors($e);
         }

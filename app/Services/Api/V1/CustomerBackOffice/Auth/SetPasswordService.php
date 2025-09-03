@@ -27,14 +27,12 @@ class SetPasswordService implements SetPasswordInterface
                 PasswordChangedJob::dispatch($customer);
 
                 return Helper::response(
-                    'Password updated.',
                     'Password updated successfully',
                     ResponseAlias::HTTP_OK
                 );
             }
 
             return Helper::response(
-                'Link expired.',
                 'Request url is not available or expired',
                 ResponseAlias::HTTP_GONE
             );

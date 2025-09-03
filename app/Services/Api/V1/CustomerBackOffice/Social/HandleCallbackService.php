@@ -3,6 +3,7 @@
 namespace App\Services\Api\V1\CustomerBackOffice\Social;
 
 use App\Contracts\Api\V1\CustomerBackOffice\Social\HandleCallbackInterface;
+use Illuminate\Http\JsonResponse;
 use Symfony\Component\HttpFoundation\Response as ResponseAlias;
 use App\Library\SocialManager\SocialMediaManager;
 use Illuminate\Support\Facades\Auth;
@@ -31,7 +32,6 @@ class HandleCallbackService implements HandleCallbackInterface
             // Validate state parameter (CSRF protection)
             if ($request->state !== csrf_token()) {
                 return Helper::response(
-                    'Invalid state parameter',
                     'Security validation failed',
                     ResponseAlias::HTTP_BAD_REQUEST
                 );
@@ -40,7 +40,6 @@ class HandleCallbackService implements HandleCallbackInterface
             // Check for error in callback
             if ($request->error) {
                 return Helper::response(
-                    'Authorization failed',
                     $request->error_description ?? $request->error,
                     ResponseAlias::HTTP_BAD_REQUEST
                 );
@@ -49,7 +48,6 @@ class HandleCallbackService implements HandleCallbackInterface
             // Validate authorization code
             if (!$request->code) {
                 return Helper::response(
-                    'Missing authorization code',
                     'No authorization code received from TikTok',
                     ResponseAlias::HTTP_BAD_REQUEST
                 );
@@ -57,36 +55,29 @@ class HandleCallbackService implements HandleCallbackInterface
 
             // Exchange code for token
             $tokenData = $service->exchangeCodeForToken($request->code);
-
-            if (isset($tokenData['header_code'])) {
+            if ($tokenData['header_code'] != ResponseAlias::HTTP_OK) {
                 return Helper::response(
-                    ResponseAlias::$statusTexts[$tokenData['header_code']],
                     $tokenData['body'],
                     $tokenData['header_code']
                 );
             }
 
             // Get comprehensive user profile from TikTok
-            $profileData = $service->getUserProfile($tokenData['access_token']);
+            $profileData = $service->getUserProfile($tokenData['body']['access_token']);
 
-            if (isset($profileData['header_code'])) {
-                return Helper::response(
-                    ResponseAlias::$statusTexts[$profileData['header_code']],
-                    $profileData['body'],
-                    $profileData['header_code']
-                );
+            if ($profileData['header_code'] != ResponseAlias::HTTP_OK) {
+                return $profileData;
             }
 
             // Check if this TikTok account is already linked to another user
             $existingAccount = CustomerAccount::whereHas('socialAccount', function ($q) use ($platform) {
                 $q->where('slug', $platform);
-            })->where('identifier', $profileData['identifier'])
+            })->where('identifier', $profileData['body']['identifier'])
                 ->where('customer_id', '!=', $user->id)
                 ->first();
 
             if ($existingAccount) {
                 return Helper::response(
-                    Response::$statusTexts[ResponseAlias::HTTP_CONFLICT],
                     'This TikTok account is already linked to another user.',
                     ResponseAlias::HTTP_CONFLICT
                 );
@@ -103,8 +94,8 @@ class HandleCallbackService implements HandleCallbackInterface
                 }
 
                 // Calculate token expiration
-                $tokenExpiresAt = isset($tokenData['expires_in'])
-                    ? Carbon::now()->addSeconds($tokenData['expires_in'])
+                $tokenExpiresAt = isset($tokenData['body']['expires_in'])
+                    ? Carbon::now()->addSeconds($tokenData['body']['expires_in'])
                     : null;
 
                 // Create or update customer account with comprehensive data
@@ -112,28 +103,28 @@ class HandleCallbackService implements HandleCallbackInterface
                     [
                         'social_accounts_id' => $socialAccount->id,
                         'customer_id' => $user->id,
-                        'identifier' => $profileData['identifier'],
+                        'identifier' => $profileData['body']['identifier'],
                     ],
                     [
-                        'username' => $profileData['username'] ?? $profileData['display_name'] ?? 'Unknown',
-                        'display_name' => $profileData['display_name'] ?? $profileData['username'] ?? 'Unknown',
-                        'profile_picture' => $profileData['profile_picture'],
-                        'follower_count' => $profileData['follower_count'] ?? 0,
-                        'following_count' => $profileData['following_count'] ?? 0,
-                        'access_token' => $tokenData['access_token'],
-                        'refresh_token' => $tokenData['refresh_token'] ?? null,
+                        'username' => $profileData['body']['username'] ?? $profileData['body']['display_name'] ?? 'Unknown',
+                        'display_name' => $profileData['body']['display_name'] ?? $profileData['body']['username'] ?? 'Unknown',
+                        'profile_picture' => $profileData['body']['profile_picture'],
+                        'follower_count' => $profileData['body']['follower_count'] ?? 0,
+                        'following_count' => $profileData['body']['following_count'] ?? 0,
+                        'access_token' => $tokenData['body']['access_token'],
+                        'refresh_token' => $tokenData['body']['refresh_token'] ?? null,
                         'token_expires_at' => $tokenExpiresAt,
                         'platform_data' => json_encode([
-                            'union_id' => $profileData['union_id'] ?? null,
-                            'bio_description' => $profileData['bio_description'] ?? null,
-                            'profile_deep_link' => $profileData['profile_deep_link'] ?? null,
-                            'is_verified' => $profileData['is_verified'] ?? false,
-                            'likes_count' => $profileData['likes_count'] ?? 0,
-                            'video_count' => $profileData['video_count'] ?? 0,
-                            'profile_picture_100' => $profileData['profile_picture_100'] ?? null,
-                            'scopes' => $tokenData['scope'] ?? '',
-                            'token_type' => $tokenData['token_type'] ?? 'Bearer',
-                            'refresh_expires_in' => $tokenData['refresh_expires_in'] ?? null,
+                            'union_id' => $profileData['body']['union_id'] ?? null,
+                            'bio_description' => $profileData['body']['bio_description'] ?? null,
+                            'profile_deep_link' => $profileData['body']['profile_deep_link'] ?? null,
+                            'is_verified' => $profileData['body']['is_verified'] ?? false,
+                            'likes_count' => $profileData['body']['likes_count'] ?? 0,
+                            'video_count' => $profileData['body']['video_count'] ?? 0,
+                            'profile_picture_100' => $profileData['body']['profile_picture_100'] ?? null,
+                            'scopes' => $tokenData['body']['scope'] ?? '',
+                            'token_type' => $tokenData['body']['token_type'] ?? 'Bearer',
+                            'refresh_expires_in' => $tokenData['body']['refresh_expires_in'] ?? null,
                             'last_token_refresh' => now()->toISOString(),
                         ]),
                         'is_active' => true,
@@ -153,18 +144,17 @@ class HandleCallbackService implements HandleCallbackInterface
                     'follower_count' => $customerAccount->follower_count,
                     'following_count' => $customerAccount->following_count,
                     'is_active' => $customerAccount->is_active,
-                    'is_verified' => $profileData['is_verified'] ?? false,
-                    'bio_description' => $profileData['bio_description'] ?? null,
-                    'likes_count' => $profileData['likes_count'] ?? 0,
-                    'video_count' => $profileData['video_count'] ?? 0,
-                    'profile_deep_link' => $profileData['profile_deep_link'] ?? null,
+                    'is_verified' => $profileData['body']['is_verified'] ?? false,
+                    'bio_description' => $profileData['body']['bio_description'] ?? null,
+                    'likes_count' => $profileData['body']['likes_count'] ?? 0,
+                    'video_count' => $profileData['body']['video_count'] ?? 0,
+                    'profile_deep_link' => $profileData['body']['profile_deep_link'] ?? null,
                     'last_synced_at' => $customerAccount->last_synced_at->toISOString(),
                     'token_expires_at' => $tokenExpiresAt?->toISOString(),
-                    'scopes' => explode(',', $tokenData['scope'] ?? ''),
+                    'scopes' => explode(',', $tokenData['body']['scope'] ?? ''),
                 ];
 
                 return Helper::response(
-                    ResponseAlias::$statusTexts[ResponseAlias::HTTP_OK],
                     $responseData,
                     ResponseAlias::HTTP_OK
                 );
@@ -184,9 +174,9 @@ class HandleCallbackService implements HandleCallbackInterface
     /**
      * Refresh expired tokens for a customer account
      * @param CustomerAccount $account
-     * @return array
+     * @return array|JsonResponse
      */
-    public function refreshAccountToken(CustomerAccount $account): array
+    public function refreshAccountToken(CustomerAccount $account): array|JsonResponse
     {
         try {
             $service = $this->socialMediaManager->getService($account->socialAccount->slug);
@@ -200,42 +190,36 @@ class HandleCallbackService implements HandleCallbackInterface
 
             $refreshResult = $service->refreshToken($account->refresh_token);
 
-            if (isset($refreshResult['header_code'])) {
-                return [
-                    'success' => false,
-                    'message' => $refreshResult['body'],
-                    'code' => $refreshResult['header_code']
-                ];
+            if ($refreshResult['header_code'] != ResponseAlias::HTTP_OK) {
+                return $refreshResult;
             }
 
             // Update account with new token data
             $account->update([
-                'access_token' => $refreshResult['access_token'],
-                'refresh_token' => $refreshResult['refresh_token'] ?? $account->refresh_token,
-                'token_expires_at' => isset($refreshResult['expires_in'])
-                    ? Carbon::now()->addSeconds($refreshResult['expires_in'])
+                'access_token' => $refreshResult['body']['access_token'],
+                'refresh_token' => $refreshResult['body']['refresh_token'] ?? $account->refresh_token,
+                'token_expires_at' => isset($refreshResult['body']['expires_in'])
+                    ? Carbon::now()->addSeconds($refreshResult['body']['expires_in'])
                     : null,
                 'last_synced_at' => now(),
                 'platform_data' => array_merge(
                     json_decode($account->platform_data, true) ?? [],
                     [
                         'last_token_refresh' => now()->toISOString(),
-                        'refresh_expires_in' => $refreshResult['refresh_expires_in'] ?? null,
+                        'refresh_expires_in' => $refreshResult['body']['refresh_expires_in'] ?? null,
                     ]
                 )
             ]);
 
             return [
-                'success' => true,
-                'message' => 'Token refreshed successfully',
-                'expires_at' => $account->token_expires_at?->toISOString()
+                'header_code' => ResponseAlias::HTTP_OK,
+                'body' => 'Token refreshed successfully',
             ];
 
         } catch (\Exception $e) {
-
             return [
-                'success' => false,
-                'message' => 'Token refresh failed: ' . $e->getMessage()
+                'header_code' => ResponseAlias::HTTP_INTERNAL_SERVER_ERROR,
+                'body' => $e->getMessage(),
             ];
         }
     }
@@ -259,28 +243,24 @@ class HandleCallbackService implements HandleCallbackInterface
             // Get updated profile data
             $profileData = $service->getUserProfile($account->access_token);
 
-            if (isset($profileData['header_code'])) {
-                return [
-                    'success' => false,
-                    'message' => $profileData['body'],
-                    'code' => $profileData['header_code']
-                ];
+            if ($profileData['header_code'] != ResponseAlias::HTTP_OK) {
+                return $profileData;
             }
 
             // Update account with fresh data
             $account->update([
-                'username' => $profileData['username'] ?? $account->username,
-                'display_name' => $profileData['display_name'] ?? $account->display_name,
-                'profile_picture' => $profileData['profile_picture'] ?? $account->profile_picture,
-                'follower_count' => $profileData['follower_count'] ?? $account->follower_count,
-                'following_count' => $profileData['following_count'] ?? $account->following_count,
+                'username' => $profileData['body']['username'] ?? $account->username,
+                'display_name' => $profileData['body']['display_name'] ?? $account->display_name,
+                'profile_picture' => $profileData['body']['profile_picture'] ?? $account->profile_picture,
+                'follower_count' => $profileData['body']['follower_count'] ?? $account->follower_count,
+                'following_count' => $profileData['body']['following_count'] ?? $account->following_count,
                 'platform_data' => json_encode(array_merge(
                     json_decode($account->platform_data, true) ?? [],
                     [
-                        'bio_description' => $profileData['bio_description'] ?? null,
-                        'is_verified' => $profileData['is_verified'] ?? false,
-                        'likes_count' => $profileData['likes_count'] ?? 0,
-                        'video_count' => $profileData['video_count'] ?? 0,
+                        'bio_description' => $profileData['body']['bio_description'] ?? null,
+                        'is_verified' => $profileData['body']['is_verified'] ?? false,
+                        'likes_count' => $profileData['body']['likes_count'] ?? 0,
+                        'video_count' => $profileData['body']['video_count'] ?? 0,
                         'last_sync' => now()->toISOString(),
                     ]
                 )),
