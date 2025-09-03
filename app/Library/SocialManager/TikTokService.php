@@ -11,6 +11,7 @@ use Random\RandomException;
 use App\Models\Post;
 use Carbon\Carbon;
 use App\Helper;
+use Illuminate\Support\Facades\Storage;
 
 class TikTokService
 {
@@ -410,7 +411,8 @@ class TikTokService
             ]
         ];
 
-        $response = Helper::makeHttpRequest('POST', "{$this->baseUrl}/v2/post/publish/video/init/", $data, $headers);
+        // Use the correct TikTok API v2 endpoint
+        $response = Helper::makeHttpRequest('POST', "{$this->baseUrl}/v2/post/publish/video/init/", $data, $headers, false, $this->platform);
 
         if ($response['header_code'] != ResponseAlias::HTTP_OK) {
             return $response;
@@ -428,7 +430,7 @@ class TikTokService
             'video' => new \CURLFile($filePath, mime_content_type($filePath), basename($filePath))
         ];
 
-        $uploadResponse = Helper::makeHttpRequest('POST', $uploadUrl, $uploadData, $uploadHeaders);
+        $uploadResponse = Helper::makeHttpRequest('POST', $uploadUrl, $uploadData, $uploadHeaders, false, $this->platform);
 
         if ($uploadResponse['header_code'] != ResponseAlias::HTTP_OK) {
             return $uploadResponse;
@@ -460,20 +462,20 @@ class TikTokService
         }
 
         // TikTok only supports single video uploads
-        if (count($post->files) === 0) {
+        if ($post->postFiles->count() === 0) {
             return [
                 'header_code' => ResponseAlias::HTTP_BAD_REQUEST,
                 'body' => 'No video file provided.'
             ];
         }
 
-        $videoFile = $post->files->first();
-        $filePath = storage_path('app/' . $videoFile->file_path);
+        $videoFile = $post->postFiles->first();
+        $filePath = Storage::disk('private')->path($videoFile->file_path);
 
         if (!file_exists($filePath)) {
             return [
                 'header_code' => ResponseAlias::HTTP_BAD_REQUEST,
-                'body' => 'No video file provided.'
+                'body' => 'Video file not found.'
             ];
         }
 
@@ -495,9 +497,13 @@ class TikTokService
         $headers = ['Authorization' => "Bearer {$account->access_token}"];
         $data = ['publish_id' => $uploadResult['body']['publish_id']];
 
-        $statusResponse = Helper::makeHttpRequest('POST', "{$this->baseUrl}/v2/post/publish/status/fetch/", $data, $headers);
+        $statusResponse = Helper::makeHttpRequest('POST', "{$this->baseUrl}/v2/post/publish/status/fetch/", $data, $headers, false, $this->platform);
 
-        $statusData = $statusResponse && $statusResponse['success'] ? $statusResponse['data']['data'] : [];
+        if ($statusResponse['header_code'] != ResponseAlias::HTTP_OK) {
+            return $statusResponse;
+        }
+
+        $statusData = $statusResponse['body']['data'] ?? [];
 
         return [
             'header_code' => $statusResponse['header_code'],

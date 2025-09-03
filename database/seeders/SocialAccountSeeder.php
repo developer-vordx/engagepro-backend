@@ -84,13 +84,13 @@ class SocialAccountSeeder extends Seeder
                 'name' => 'X (Twitter)',
                 'slug' => 'x',
                 'url' => 'https://api.twitter.com',
-                'scopes' => json_encode(['tweet.write', 'users.read']),
+                'scopes' => json_encode(['tweet.read', 'tweet.write', 'users.read', 'offline.access']),
                 'supported_media_types' => json_encode(['image', 'video', 'text']),
                 'media_requirements' => json_encode([
                     'image' => ['max_size' => '5MB', 'formats' => ['jpg', 'png', 'gif']],
                     'video' => ['max_size' => '512MB', 'formats' => ['mp4'], 'max_duration' => 140]
                 ]),
-                'status' => 'pending',
+                'status' => 'active',
             ],
         ];
 

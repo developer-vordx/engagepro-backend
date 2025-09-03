@@ -17,6 +17,10 @@ return new class extends Migration
             $table->string('file_path');
             $table->enum('file_type', ['image', 'video']);
             $table->enum('status', ['pending', 'validated', 'rejected', 'draft'])->default('pending');
+            $table->bigInteger('file_size')->nullable();
+            $table->string('mime_type')->nullable();
+            $table->integer('duration')->nullable(); // in seconds
+            $table->json('dimensions')->nullable(); // width, height
             $table->timestamps();
         });
     }

@@ -28,7 +28,12 @@ class CustomerPlan extends Model
 
     public function subscriptionPlan(): BelongsTo
     {
-        return $this->belongsTo(Plan::class);
+        return $this->belongsTo(Plan::class, 'plan_id');
+    }
+
+    public function plan(): BelongsTo
+    {
+        return $this->belongsTo(Plan::class, 'plan_id');
     }
 
     // Scopes

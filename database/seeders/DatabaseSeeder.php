@@ -14,6 +14,8 @@ class DatabaseSeeder extends Seeder
 
         $this->call([
             SocialAccountSeeder::class,
+            MetaSocialAccountSeeder::class,
+            YouTubeSocialAccountSeeder::class,
             SubscriptionPlanSeeder::class
         ]);
     }

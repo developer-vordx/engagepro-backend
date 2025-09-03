@@ -10,7 +10,22 @@ class PostFile extends Model
 {
     use HasFactory;
 
-    protected $guarded = [];
+    protected $fillable = [
+        'post_id',
+        'file_path',
+        'file_type',
+        'status',
+        'file_size',
+        'mime_type',
+        'duration',
+        'dimensions'
+    ];
+
+    protected $casts = [
+        'file_size' => 'integer',
+        'duration' => 'integer',
+        'dimensions' => 'array',
+    ];
 
     // Relationships
     public function post(): BelongsTo

@@ -18,6 +18,9 @@ return new class extends Migration
             $table->text('description')->nullable();
             $table->json('metadata')->nullable();
             $table->json('tags')->nullable();
+            $table->json('target_platforms')->nullable();
+            $table->timestamp('scheduled_at')->nullable();
+            $table->enum('status', ['draft', 'pending', 'published', 'failed'])->default('draft');
             $table->timestamps();
         });
     }

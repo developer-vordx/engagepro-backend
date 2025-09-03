@@ -88,7 +88,7 @@ class SubscriptionPlanSeeder extends Seeder
             foreach ($features as $feature) {
                 PlanFeature::updateOrCreate([
                     'plan_id' => $plan->id,
-                    'features' => $feature,
+                    'feature_name' => $feature,
                 ], [
                     'description' => $feature,
                 ]);

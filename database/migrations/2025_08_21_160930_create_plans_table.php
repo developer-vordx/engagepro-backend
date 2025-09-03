@@ -19,6 +19,14 @@ return new class extends Migration
             $table->decimal('price', 8, 2);
             $table->enum('type', ['month', 'year']);
             $table->integer('duration')->default(0);
+            $table->boolean('is_active')->default(true);
+            $table->boolean('priority_support')->default(false);
+            $table->boolean('custom_branding')->default(false);
+            $table->boolean('api_access')->default(false);
+            $table->integer('max_accounts_per_platform')->default(1);
+            $table->integer('max_posts_per_month')->default(10);
+            $table->integer('max_file_size_mb')->default(100);
+            $table->integer('analytics_retention_days')->default(30);
             $table->timestamps();
         });
     }

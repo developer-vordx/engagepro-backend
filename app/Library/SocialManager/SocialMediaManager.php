@@ -21,9 +21,10 @@ class SocialMediaManager
     private function registerServices(): void
     {
         $this->services['tiktok'] = new TikTokService();
+        $this->services['x'] = new XService();
+        $this->services['meta'] = new MetaService();
+        $this->services['youtube'] = new YouTubeService();
         // Add other services as they're implemented
-        // $this->services['youtube'] = new YouTubeService();
-        // $this->services['instagram'] = new InstagramService();
     }
 
     public function getService(string $platform)

@@ -33,7 +33,7 @@ class SocialPost extends Model
 
     public function socialAccount(): BelongsTo
     {
-        return $this->belongsTo(SocialAccount::class);
+        return $this->belongsTo(SocialAccount::class, 'social_account_id');
     }
 
     public function postInsights(): HasMany

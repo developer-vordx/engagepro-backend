@@ -11,11 +11,22 @@ class Post extends Model
 {
     use HasFactory;
 
-    protected $fillable = [];
+    protected $fillable = [
+        'customer_id',
+        'title',
+        'description',
+        'metadata',
+        'tags',
+        'target_platforms',
+        'scheduled_at',
+        'status'
+    ];
 
     protected $casts = [
         'metadata' => 'array',
         'tags' => 'array',
+        'target_platforms' => 'array',
+        'scheduled_at' => 'datetime',
     ];
 
     // Relationships
