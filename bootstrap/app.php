@@ -18,6 +18,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'request_logs' => \App\Http\Middleware\RequestLogMiddleware::class,
             'user.auth' => \App\Http\Middleware\JwtUserAuthMiddleware::class,
             'customer.auth' => \App\Http\Middleware\JwtCustomerAuthMiddleware::class,
+            'subscription.validate' => \App\Http\Middleware\SubscriptionValidationMiddleware::class,
+            'social.security' => \App\Http\Middleware\SocialMediaSecurityMiddleware::class,
         ]);
 
     })

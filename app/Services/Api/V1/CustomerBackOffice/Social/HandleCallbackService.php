@@ -48,7 +48,7 @@ class HandleCallbackService implements HandleCallbackInterface
             // Validate authorization code
             if (!$request->code) {
                 return Helper::response(
-                    'No authorization code received from TikTok',
+                    'No authorization code received from provider',
                     ResponseAlias::HTTP_BAD_REQUEST
                 );
             }

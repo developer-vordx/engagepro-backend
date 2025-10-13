@@ -32,7 +32,12 @@ class Plan extends Model
 
     public function customerSubscriptions(): HasMany
     {
-        return $this->hasMany(CustomerPlan::class);
+        return $this->hasMany(CustomerPlan::class, 'plan_id');
+    }
+
+    public function customerPlans(): HasMany
+    {
+        return $this->hasMany(CustomerPlan::class, 'plan_id');
     }
 
     // Scopes

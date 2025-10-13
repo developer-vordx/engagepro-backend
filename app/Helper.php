@@ -113,4 +113,131 @@ class Helper extends BaseService
             'body' => $response->json(),
         ];
     }
+
+
+    /**
+     * Create PKCE challenge and verifier
+     * @param string $sessionKey
+     * @return array
+     */
+    public static function generatePKCE(string $sessionKey): array
+    {
+        $codeVerifier = bin2hex(random_bytes(64));
+        session([$sessionKey => $codeVerifier]);
+
+        $codeChallenge = rtrim(
+            strtr(base64_encode(hash('sha256', $codeVerifier, true)), '+/', '-_'),
+            '='
+        );
+
+        return [
+            'code_challenge' => $codeChallenge,
+            'code_challenge_method' => 'S256'
+        ];
+    }
+
+    /**
+     * Validate file for social media upload
+     * @param string $filePath
+     * @param array $allowedMimes
+     * @param int $maxSizeBytes
+     * @return array
+     */
+    public static function validateMediaFile(
+        string $filePath,
+        array $allowedMimes,
+        int $maxSizeBytes
+    ): array {
+        if (!file_exists($filePath)) {
+            return [
+                'valid' => false,
+                'error' => "File does not exist: {$filePath}"
+            ];
+        }
+
+        $fileSize = filesize($filePath);
+        $mimeType = mime_content_type($filePath);
+
+        if (!in_array($mimeType, $allowedMimes)) {
+            return [
+                'valid' => false,
+                'error' => "File type {$mimeType} not supported. Allowed: " . implode(', ', $allowedMimes)
+            ];
+        }
+
+        if ($fileSize > $maxSizeBytes) {
+            return [
+                'valid' => false,
+                'error' => "File size " . round($fileSize / (1024 * 1024), 2) . "MB exceeds limit of " . round($maxSizeBytes / (1024 * 1024), 2) . "MB"
+            ];
+        }
+
+        return [
+            'valid' => true,
+            'size' => $fileSize,
+            'mime_type' => $mimeType,
+        ];
+    }
+
+    /**
+     * Build Basic Auth header
+     * @param string $username
+     * @param string $password
+     * @return string
+     */
+    public static function buildBasicAuthHeader(string $username, string $password): string
+    {
+        return 'Basic ' . base64_encode($username . ':' . $password);
+    }
+
+    /**
+     * Truncate text to max length with ellipsis
+     * @param string|null $text
+     * @param int $maxLength
+     * @return string|null
+     */
+    public static function truncateText(?string $text, int $maxLength): ?string
+    {
+        if (!$text || strlen($text) <= $maxLength) {
+            return $text;
+        }
+
+        return substr($text, 0, $maxLength - 3) . '...';
+    }
+
+    /**
+     * Parse scopes from various formats (string, array, JSON)
+     * @param mixed $scopes
+     * @return array
+     */
+    public static function parseScopes(mixed $scopes): array
+    {
+        if (is_array($scopes)) {
+            return $scopes;
+        }
+
+        if (is_string($scopes)) {
+            // Try JSON decode first
+            $decoded = json_decode($scopes, true);
+            if (is_array($decoded)) {
+                return $decoded;
+            }
+
+            // Try comma-separated
+            if (str_contains($scopes, ',')) {
+                return array_map('trim', explode(',', $scopes));
+            }
+
+            // Try space-separated
+            if (str_contains($scopes, ' ')) {
+                return array_map('trim', explode(' ', $scopes));
+            }
+
+            // Single scope
+            return [$scopes];
+        }
+
+        return [];
+    }
 }
+

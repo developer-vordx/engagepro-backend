@@ -15,6 +15,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('customer_account_id')->constrained()->onDelete('cascade');
             $table->foreignId('post_id')->constrained()->onDelete('cascade');
+            $table->foreignId('social_account_id')->constrained('social_accounts')->onDelete('cascade');
             $table->string('platform_post_id');
             $table->string('post_url')->nullable();
             $table->enum('status', ['pending', 'published', 'failed'])->default('pending');

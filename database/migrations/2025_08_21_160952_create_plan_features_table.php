@@ -14,8 +14,9 @@ return new class extends Migration
         Schema::create('plan_features', function (Blueprint $table) {
             $table->id();
             $table->foreignId('plan_id')->constrained()->onDelete('cascade');
-            $table->string('features');
+            $table->string('feature_name');
             $table->text('description');
+            $table->boolean('is_enabled')->default(true);
             $table->timestamps();
         });
     }

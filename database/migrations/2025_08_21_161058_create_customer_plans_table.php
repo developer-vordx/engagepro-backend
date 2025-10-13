@@ -21,6 +21,7 @@ return new class extends Migration
             $table->integer('posts_this_month')->default(0);
             $table->date('posts_count_reset_date')->nullable();
             $table->json('metadata')->nullable();
+            $table->integer('max_social_accounts_per_platform')->default(1);
             $table->timestamps();
 
             $table->index(['customer_id', 'status']);
