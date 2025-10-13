@@ -2,6 +2,7 @@
 
 namespace App\Library\SocialManager;
 
+use App\Models\CustomerAccount;
 use App\Models\SocialAccount;
 use App\Models\Post;
 use App\Models\PostFile;
@@ -27,14 +28,14 @@ class MetaService
         $platForm = SocialAccount::where('slug', 'meta')->first();
         $this->baseUrl = $platForm->url;
         $this->scopes = $platForm->scopes;
-        
+
         // Meta App credentials
         $this->appId = config('services.meta.app_id', '');
         $this->appSecret = config('services.meta.app_secret', '');
         $this->redirectUri = config('services.meta.redirect_uri', '');
         $this->accessToken = config('services.meta.access_token', '');
         $this->graphVersion = config('services.meta.graph_version', 'v18.0');
-        
+
         $this->platform = $platForm->slug;
         $this->supportedMediaTypes = $platForm->supported_media_types;
     }
@@ -69,7 +70,7 @@ class MetaService
     public function getAuthorizationUrl(array $scopes = []): string
     {
         $scopes = empty($scopes) ? $this->scopes : $scopes;
-        
+
         $params = [
             'client_id' => $this->appId,
             'redirect_uri' => $this->redirectUri,
@@ -96,7 +97,7 @@ class MetaService
         ];
 
         $url = "https://graph.facebook.com/{$this->graphVersion}/oauth/access_token";
-        
+
         $response = Helper::makeHttpRequest('GET', $url, $data, [], false, $this->platform);
 
         if ($response['header_code'] != ResponseAlias::HTTP_OK) {
@@ -159,14 +160,14 @@ class MetaService
         try {
             // Validate file type
             if (!$this->isValidMediaType($mediaFile->mime_type, $platform)) {
-                return $this->errorResponse(400, "Invalid media type for {$platform}");
+                return $this->errorResponse(ResponseAlias::HTTP_BAD_REQUEST, "Invalid media type for {$platform}");
             }
 
             // Get file path
             $filePath = Storage::disk('private')->path($mediaFile->file_path);
-            
+
             if (!file_exists($filePath)) {
-                return $this->errorResponse(400, 'Media file not found');
+                return $this->errorResponse(ResponseAlias::HTTP_BAD_REQUEST, 'Media file not found');
             }
 
             // Prepare upload data
@@ -199,66 +200,10 @@ class MetaService
             ];
 
         } catch (Exception $e) {
-            return $this->errorResponse(500, 'Media upload error: ' . $e->getMessage());
+            return $this->errorResponse(ResponseAlias::HTTP_INTERNAL_SERVER_ERROR, 'Media upload error: ' . $e->getMessage());
         }
     }
 
-    /**
-     * Publish post to Facebook/Instagram
-     * @param Post $post
-     * @param string $accessToken
-     * @param string $platform (facebook or instagram)
-     * @param array $mediaIds
-     * @return array
-     */
-    public function publishPost(Post $post, string $accessToken, string $platform = 'facebook', array $mediaIds = []): array
-    {
-        try {
-            $postData = [
-                'access_token' => $accessToken,
-                'message' => $post->description
-            ];
-
-            // Different endpoints and parameters for each platform
-            if ($platform === 'instagram') {
-                // Instagram requires media to be uploaded first
-                if (empty($mediaIds)) {
-                    return $this->errorResponse(400, 'Instagram posts require media');
-                }
-
-                $url = "https://graph.facebook.com/{$this->graphVersion}/me/media_publish";
-                $postData['creation_id'] = $mediaIds[0]; // Instagram uses creation_id
-                
-            } else {
-                // Facebook page post
-                $url = "https://graph.facebook.com/{$this->graphVersion}/me/feed";
-                
-                // Add media if available
-                if (!empty($mediaIds)) {
-                    $postData['attached_media'] = json_encode($mediaIds);
-                }
-            }
-
-            $response = Helper::makeHttpRequest('POST', $url, $postData, [], true, $this->platform);
-
-            if ($response['header_code'] != ResponseAlias::HTTP_OK) {
-                return $this->errorResponse($response['header_code'], 'Post publishing failed');
-            }
-
-            return [
-                'header_code' => $response['header_code'],
-                'body' => [
-                    'platform_post_id' => $response['body']['id'] ?? 'unknown',
-                    'platform_url' => $this->getPlatformUrl($response['body']['id'] ?? '', $platform),
-                    'status' => 'published',
-                    'platform' => $platform
-                ]
-            ];
-
-        } catch (Exception $e) {
-            return $this->errorResponse(500, 'Post publishing error: ' . $e->getMessage());
-        }
-    }
 
     /**
      * Validate media type for platform
@@ -288,7 +233,7 @@ class MetaService
         } elseif (strpos($mimeType, 'video/') === 0) {
             return 'VIDEO';
         }
-        
+
         return 'IMAGE'; // Default fallback
     }
 
@@ -358,10 +303,10 @@ class MetaService
                 'username' => $user['email'] ?? $user['name'] ?? null,
                 'display_name' => $user['name'] ?? null,
                 'profile_picture' => $user['picture']['data']['url'] ?? null,
-                'bio_description' => null, // Facebook doesn't provide bio in basic profile
+                'bio_description' => null,
                 'is_verified' => $user['verified'] ?? false,
-                'follower_count' => 0, // Facebook doesn't provide follower count in basic profile
-                'following_count' => 0, // Facebook doesn't provide following count in basic profile
+                'follower_count' => 0,
+                'following_count' => 0,
                 'email' => $user['email'] ?? null,
                 'gender' => $user['gender'] ?? null,
                 'locale' => $user['locale'] ?? null,
@@ -371,4 +316,244 @@ class MetaService
             ]
         ];
     }
+
+    /**
+     * Validate content for Meta platforms
+     */
+    public function validateContent(array $mediaFiles, array $metadata = []): array
+    {
+        $errors = [];
+
+        foreach ($mediaFiles as $filePath) {
+            if (!file_exists($filePath)) {
+                $errors[] = "File does not exist: {$filePath}";
+                continue;
+            }
+
+            $fileSize = filesize($filePath);
+            $mimeType = mime_content_type($filePath);
+
+            if (str_starts_with($mimeType, 'image/') && $fileSize > 30 * 1024 * 1024) {
+                $errors[] = "Image exceeds 30MB limit";
+            }
+
+            if (str_starts_with($mimeType, 'video/') && $fileSize > 10 * 1024 * 1024 * 1024) {
+                $errors[] = "Video exceeds 10GB limit";
+            }
+        }
+
+        return [
+            'valid' => empty($errors),
+            'errors' => $errors,
+            'warnings' => []
+        ];
+    }
+
+    /**
+     * Publish post to Facebook or Instagram
+     */
+    public function publishPost(CustomerAccount $account, Post $post, array $content = []): array
+    {
+        try {
+            // Determine if this is Facebook or Instagram based on account data
+            $platformData = json_decode($account->platform_data ?? '{}', true);
+            $targetPlatform = $platformData['target_platform'] ?? 'facebook';
+
+            if ($targetPlatform === 'instagram') {
+                return $this->publishToInstagram($account, $post, $content);
+            } else {
+                return $this->publishToFacebook($account, $post, $content);
+            }
+
+        } catch (\Exception $e) {
+            return $this->errorResponse(ResponseAlias::HTTP_INTERNAL_SERVER_ERROR, 'Publishing failed: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Publish to Facebook Page
+     */
+    private function publishToFacebook(CustomerAccount $account, Post $post, array $content = []): array
+    {
+        $headers = ['Authorization' => "Bearer {$account->access_token}"];
+
+        $message = $content['description'] ?? $post->description ?? '';
+        $payload = [
+            'message' => $message,
+        ];
+
+        // Upload media if present
+        $postFiles = $post->postFiles;
+        if ($postFiles && $postFiles->isNotEmpty()) {
+            $firstFile = $postFiles->first();
+            $filePath = Storage::disk('private')->path($firstFile->file_path);
+
+            if (file_exists($filePath) && str_starts_with($firstFile->mime_type, 'image/')) {
+                // Upload photo
+                $photoData = [
+                    'access_token' => $account->access_token,
+                    'message' => $message,
+                    'source' => new \CURLFile($filePath, $firstFile->mime_type, basename($filePath))
+                ];
+
+                $pageId = $account->identifier; // Page ID stored as identifier
+                $response = Helper::makeHttpRequest('POST', "https://graph.facebook.com/{$this->graphVersion}/{$pageId}/photos", $photoData, [], true, $this->platform);
+            } else {
+                // Text post
+                $pageId = $account->identifier;
+                $response = Helper::makeHttpRequest('POST', "https://graph.facebook.com/{$this->graphVersion}/{$pageId}/feed", $payload, $headers, false, $this->platform);
+            }
+        } else {
+            // Text-only post
+            $pageId = $account->identifier;
+            $response = Helper::makeHttpRequest('POST', "https://graph.facebook.com/{$this->graphVersion}/{$pageId}/feed", $payload, $headers, false, $this->platform);
+        }
+
+        if ($response['header_code'] != ResponseAlias::HTTP_OK) {
+            return $this->errorResponse($response['header_code'], $response['body'] ?? 'Failed to publish to Facebook');
+        }
+
+        return [
+            'header_code' => ResponseAlias::HTTP_OK,
+            'body' => [
+                'platform_post_id' => $response['body']['id'] ?? 'unknown',
+                'platform_url' => "https://www.facebook.com/" . ($response['body']['id'] ?? ''),
+                'status' => 'published'
+            ]
+        ];
+    }
+
+    /**
+     * Publish to Instagram Business Account
+     */
+    private function publishToInstagram(CustomerAccount $account, Post $post, array $content = []): array
+    {
+        $postFile = $post->postFiles->first();
+        if (!$postFile) {
+            return $this->errorResponse(ResponseAlias::HTTP_BAD_REQUEST, 'Instagram requires at least one media file');
+        }
+
+        $filePath = Storage::disk('private')->path($postFile->file_path);
+        if (!file_exists($filePath)) {
+            return $this->errorResponse(ResponseAlias::HTTP_BAD_REQUEST, 'Media file not found');
+        }
+
+        $headers = ['Authorization' => "Bearer {$account->access_token}"];
+        $igUserId = $account->identifier; // Instagram Business Account ID
+
+        // Step 1: Create media container
+        $caption = $content['description'] ?? $post->description ?? '';
+        $isVideo = str_starts_with($postFile->mime_type, 'video/');
+
+        // Upload image to public URL first (Instagram requires public URL)
+        // For production, use CDN or public storage
+        $mediaUrl = $content['media_url'] ?? '';
+        if (empty($mediaUrl)) {
+            return $this->errorResponse(ResponseAlias::HTTP_BAD_REQUEST, 'Instagram requires a public media URL. Please provide media_url in content.');
+        }
+
+        $containerData = [
+            'caption' => $caption,
+        ];
+
+        if ($isVideo) {
+            $containerData['media_type'] = 'VIDEO';
+            $containerData['video_url'] = $mediaUrl;
+        } else {
+            $containerData['image_url'] = $mediaUrl;
+        }
+
+        $containerResponse = Helper::makeHttpRequest('POST', "https://graph.facebook.com/{$this->graphVersion}/{$igUserId}/media", $containerData, $headers, false, $this->platform);
+
+        if ($containerResponse['header_code'] != ResponseAlias::HTTP_OK) {
+            return $this->errorResponse($containerResponse['header_code'], $containerResponse['body'] ?? 'Failed to create Instagram media container');
+        }
+
+        $creationId = $containerResponse['body']['id'] ?? null;
+        if (!$creationId) {
+            return $this->errorResponse(ResponseAlias::HTTP_INTERNAL_SERVER_ERROR, 'No creation ID received from Instagram');
+        }
+
+        // Step 2: Publish media container
+        $publishData = [
+            'creation_id' => $creationId,
+        ];
+
+        $publishResponse = Helper::makeHttpRequest('POST', "https://graph.facebook.com/{$this->graphVersion}/{$igUserId}/media_publish", $publishData, $headers, false, $this->platform);
+
+        if ($publishResponse['header_code'] != ResponseAlias::HTTP_OK) {
+            return $this->errorResponse($publishResponse['header_code'], $publishResponse['body'] ?? 'Failed to publish to Instagram');
+        }
+
+        $mediaId = $publishResponse['body']['id'] ?? 'unknown';
+
+        return [
+            'header_code' => ResponseAlias::HTTP_OK,
+            'body' => [
+                'platform_post_id' => $mediaId,
+                'platform_url' => "https://www.instagram.com/p/{$mediaId}/",
+                'status' => 'published'
+            ]
+        ];
+    }
+
+    /**
+     * Get comprehensive available scopes for Meta platforms
+     */
+    public function getAvailableScopes(): array
+    {
+        return [
+            // Facebook scopes
+            'email' => 'Access user email',
+            'public_profile' => 'Access public profile',
+            'pages_show_list' => 'Access list of Pages',
+            'pages_read_engagement' => 'Read Page engagement data',
+            'pages_manage_posts' => 'Create, edit and delete Page posts',
+            'pages_manage_engagement' => 'Manage Page interactions',
+            'pages_read_user_content' => 'Read user-generated content on Pages',
+            'pages_messaging' => 'Send messages from Pages',
+            'publish_to_groups' => 'Post to groups',
+            'groups_access_member_info' => 'Access group member info',
+
+            // Instagram scopes
+            'instagram_basic' => 'Read Instagram profile info and media',
+            'instagram_content_publish' => 'Publish content to Instagram',
+            'instagram_manage_comments' => 'Manage Instagram comments',
+            'instagram_manage_insights' => 'Read Instagram insights',
+            'instagram_manage_messages' => 'Manage Instagram Direct messages',
+            'instagram_shopping_tag_products' => 'Tag products in Instagram posts',
+            'instagram_branded_content_brand' => 'Manage branded content as brand',
+            'instagram_branded_content_creator' => 'Manage branded content as creator',
+
+            // Advanced permissions
+            'business_management' => 'Manage business assets',
+            'ads_management' => 'Manage ads',
+            'leads_retrieval' => 'Retrieve leads',
+        ];
+    }
+
+    public function getSupportedMediaTypes(): array
+    {
+        return is_array($this->supportedMediaTypes) ? $this->supportedMediaTypes : json_decode($this->supportedMediaTypes, true) ?? ['image', 'video', 'text'];
+    }
+
+    public function getPostingLimits(): array
+    {
+        return [
+            'facebook' => [
+                'max_posts_per_hour' => 60,
+                'max_image_size_mb' => 30,
+                'max_video_size_gb' => 10,
+                'max_video_duration_hours' => 2,
+            ],
+            'instagram' => [
+                'max_posts_per_hour' => 25,
+                'max_image_size_mb' => 30,
+                'max_video_size_gb' => 4,
+                'max_video_duration_seconds' => 60,
+                'min_video_duration_seconds' => 3,
+            ]
+        ];
+    }
 }
+

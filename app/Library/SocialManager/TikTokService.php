@@ -83,10 +83,7 @@ class TikTokService
     public function getAuthorizationUrl(array $scopes = []): string
     {
         $scopes = empty($scopes) ? $this->scopes : $scopes;
-        $codeVerifier = bin2hex(random_bytes(64));
-        session(['tiktok_code_verifier' => $codeVerifier]);
-
-        $codeChallenge = rtrim(strtr(base64_encode(hash('sha256', $codeVerifier, true)), '+/', '-_'), '=');
+        $pkce = Helper::generatePKCE('tiktok_code_verifier');
 
         $params = [
             'client_key' => $this->clientId,
@@ -94,8 +91,8 @@ class TikTokService
             'response_type' => 'code',
             'redirect_uri' => $this->redirectUri,
             'state' => csrf_token(),
-            'code_challenge' => $codeChallenge,
-            'code_challenge_method' => 'S256',
+            'code_challenge' => $pkce['code_challenge'],
+            'code_challenge_method' => $pkce['code_challenge_method'],
         ];
 
         return 'https://www.tiktok.com/v2/auth/authorize?' . http_build_query($params);
@@ -606,13 +603,6 @@ class TikTokService
         ];
     }
 
-    /**
-     * @return string[]
-     */
-    public function getSupportedMediaTypes(): array
-    {
-        return $this->supportedMediaTypes; // TikTok only supports videos
-    }
 
     /**
      * Enhanced content validation
@@ -668,9 +658,39 @@ class TikTokService
         ];
     }
 
+
     /**
+     * Get available scopes for TikTok API (Latest TikTok for Developers)
      * @return array
      */
+    public function getAvailableScopes(): array
+    {
+        return [
+            // User Info scopes
+            'user.info.basic' => 'Read basic user profile information (open_id, display_name, avatar_url)',
+            'user.info.profile' => 'Read extended user profile (bio_description, profile_deep_link)',
+            'user.info.stats' => 'Read user statistics (followers, following, likes, video count)',
+            
+            // Video scopes
+            'video.list' => 'Read user\'s public videos with metadata',
+            'video.upload' => 'Upload and publish videos on behalf of user',
+            'video.publish' => 'Publish videos (included in video.upload for v2 API)',
+            
+            // Research API scopes (if applicable)
+            'research.adlib.basic' => 'Access Ad Library Research API',
+            'research.data.basic' => 'Access Research API data',
+            
+            // Comment scopes (if enabled)
+            'comment.list' => 'Read comments on user\'s videos',
+            'comment.list.manage' => 'Manage comments on user\'s videos',
+        ];
+    }
+
+    public function getSupportedMediaTypes(): array
+    {
+        return is_array($this->supportedMediaTypes) ? $this->supportedMediaTypes : json_decode($this->supportedMediaTypes, true) ?? ['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/webm'];
+    }
+
     public function getPostingLimits(): array
     {
         return [
@@ -679,27 +699,15 @@ class TikTokService
             'max_file_size_mb' => 287,
             'supported_formats' => ['mp4', 'mov', 'avi', 'webm'],
             'min_duration_seconds' => 3,
-            'max_duration_seconds' => 600, // 10 minutes
+            'max_duration_seconds' => 600,
             'max_description_length' => 2200,
             'max_title_length' => 150,
             'supported_aspect_ratios' => ['9:16', '16:9', '1:1'],
             'min_resolution' => '540x960',
             'max_resolution' => '1080x1920',
-        ];
-    }
-
-    /**
-     * Get available scopes for TikTok API
-     * @return array
-     */
-    public function getAvailableScopes(): array
-    {
-        return [
-            'user.info.basic' => 'Read basic user profile information',
-            'user.info.profile' => 'Read extended user profile information',
-            'user.info.stats' => 'Read user statistics (followers, following, likes, video count)',
-            'video.list' => 'Read user\'s public videos',
-            'video.upload' => 'Upload videos on behalf of user'
+            'recommended_resolution' => '1080x1920',
+            'frame_rate' => '23-60 FPS',
         ];
     }
 }
+

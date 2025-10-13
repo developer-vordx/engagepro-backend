@@ -20,7 +20,6 @@ class YouTubeService
     private string $platform;
     private mixed $supportedMediaTypes;
     private string $accessToken;
-    private string $apiKey;
 
     public function __construct()
     {
@@ -33,7 +32,6 @@ class YouTubeService
         $this->clientSecret = config('services.youtube.client_secret', '');
         $this->redirectUri = config('services.youtube.redirect_uri', '');
         $this->accessToken = config('services.youtube.access_token', '');
-        $this->apiKey = config('services.youtube.api_key', '');
         
         $this->platform = $platForm->slug;
         $this->supportedMediaTypes = $platForm->supported_media_types;
@@ -169,14 +167,14 @@ class YouTubeService
         try {
             // Validate video file
             if (!$this->isValidVideoType($videoFile->mime_type)) {
-                return $this->errorResponse(400, 'Invalid video type for YouTube');
+                return $this->errorResponse(ResponseAlias::HTTP_BAD_REQUEST, 'Invalid video type for YouTube');
             }
 
             // Get file path
             $filePath = Storage::disk('private')->path($videoFile->file_path);
             
             if (!file_exists($filePath)) {
-                return $this->errorResponse(400, 'Video file not found');
+                return $this->errorResponse(ResponseAlias::HTTP_BAD_REQUEST, 'Video file not found');
             }
 
             // Prepare video metadata
@@ -239,7 +237,7 @@ class YouTubeService
             curl_close($ch);
             
             if ($error) {
-                return $this->errorResponse(500, 'cURL error: ' . $error);
+                return $this->errorResponse(ResponseAlias::HTTP_INTERNAL_SERVER_ERROR, 'cURL error: ' . $error);
             }
             
             if ($httpCode != ResponseAlias::HTTP_OK) {
@@ -248,7 +246,7 @@ class YouTubeService
             
             $responseData = json_decode($response, true);
             if (!$responseData) {
-                return $this->errorResponse(500, 'Invalid response from YouTube API');
+                return $this->errorResponse(ResponseAlias::HTTP_INTERNAL_SERVER_ERROR, 'Invalid response from YouTube API');
             }
 
             return [
@@ -262,7 +260,7 @@ class YouTubeService
             ];
 
         } catch (Exception $e) {
-            return $this->errorResponse(500, 'Video upload error: ' . $e->getMessage());
+            return $this->errorResponse(ResponseAlias::HTTP_INTERNAL_SERVER_ERROR, 'Video upload error: ' . $e->getMessage());
         }
     }
 
@@ -434,7 +432,7 @@ class YouTubeService
             ];
         }
 
-        return $this->errorResponse(404, 'Video not found');
+        return $this->errorResponse(ResponseAlias::HTTP_NOT_FOUND, 'Video not found');
     }
 
     /**
@@ -499,17 +497,25 @@ class YouTubeService
     }
 
     /**
-     * Get available scopes
+     * Get available scopes (Latest YouTube Data API v3)
      * @return array
      */
     public function getAvailableScopes(): array
     {
         return [
-            'https://www.googleapis.com/auth/youtube',
-            'https://www.googleapis.com/auth/youtube.upload',
-            'https://www.googleapis.com/auth/youtube.force-ssl',
-            'https://www.googleapis.com/auth/youtubepartner'
+            'https://www.googleapis.com/auth/youtube' => 'Manage your YouTube account (upload, update, delete videos)',
+            'https://www.googleapis.com/auth/youtube.upload' => 'Upload videos and manage uploads',
+            'https://www.googleapis.com/auth/youtube.readonly' => 'View your YouTube account data (read-only)',
+            'https://www.googleapis.com/auth/youtube.force-ssl' => 'Manage your YouTube data (HTTPS)',
+            'https://www.googleapis.com/auth/youtubepartner' => 'Manage YouTube partnership features',
+            'https://www.googleapis.com/auth/youtubepartner-channel-audit' => 'View private information of your YouTube channel',
+            'https://www.googleapis.com/auth/youtube.channel-memberships.creator' => 'View your YouTube memberships',
         ];
+    }
+
+    public function getSupportedMediaTypes(): array
+    {
+        return is_array($this->supportedMediaTypes) ? $this->supportedMediaTypes : json_decode($this->supportedMediaTypes, true) ?? ['video'];
     }
 
     /**
@@ -736,7 +742,7 @@ class YouTubeService
     public function setVideoThumbnail(string $videoId, string $imagePath, string $accessToken): array
     {
         if (!file_exists($imagePath)) {
-            return $this->errorResponse(400, 'Thumbnail image not found');
+            return $this->errorResponse(ResponseAlias::HTTP_BAD_REQUEST, 'Thumbnail image not found');
         }
 
         $url = "https://www.googleapis.com/upload/youtube/v3/thumbnails/set";
@@ -774,7 +780,7 @@ class YouTubeService
         curl_close($ch);
         
         if ($error) {
-            return $this->errorResponse(500, 'cURL error: ' . $error);
+            return $this->errorResponse(ResponseAlias::HTTP_INTERNAL_SERVER_ERROR, 'cURL error: ' . $error);
         }
         
         if ($httpCode != ResponseAlias::HTTP_OK) {
@@ -783,7 +789,7 @@ class YouTubeService
         
         $responseData = json_decode($response, true);
         if (!$responseData) {
-            return $this->errorResponse(500, 'Invalid response from YouTube API');
+            return $this->errorResponse(ResponseAlias::HTTP_INTERNAL_SERVER_ERROR, 'Invalid response from YouTube API');
         }
 
         return [
@@ -911,5 +917,82 @@ class YouTubeService
         }
 
         return $response;
+    }
+
+    /**
+     * Validate content for YouTube (wrapper for consistency)
+     * @param array $mediaFiles
+     * @param array $metadata
+     * @return array
+     */
+    public function validateContent(array $mediaFiles, array $metadata = []): array
+    {
+        $errors = [];
+        $warnings = [];
+
+        foreach ($mediaFiles as $filePath) {
+            if (!file_exists($filePath)) {
+                $errors[] = "File does not exist: {$filePath}";
+                continue;
+            }
+
+            $fileSize = filesize($filePath);
+            $mimeType = mime_content_type($filePath);
+
+            // Validate video type
+            if (!$this->isValidVideoType($mimeType)) {
+                $errors[] = "Invalid video type: {$mimeType}. YouTube accepts MP4, MOV, AVI, WMV, FLV, WebM, MKV";
+            }
+
+            // Validate file size (128GB max, 256GB for verified)
+            if ($fileSize > 128 * 1024 * 1024 * 1024) {
+                $errors[] = "Video exceeds 128GB limit";
+            }
+
+            // Check unverified account limit (15 minutes)
+            if ($fileSize > 1 * 1024 * 1024 * 1024) {
+                $warnings[] = "Videos over 1GB may be limited to 15 minutes for unverified accounts";
+            }
+        }
+
+        // Validate metadata
+        if (isset($metadata['title']) && strlen($metadata['title']) > 100) {
+            $errors[] = "Title exceeds 100 character limit";
+        }
+
+        if (isset($metadata['description']) && strlen($metadata['description']) > 5000) {
+            $errors[] = "Description exceeds 5000 character limit";
+        }
+
+        return [
+            'valid' => empty($errors),
+            'errors' => $errors,
+            'warnings' => $warnings
+        ];
+    }
+
+    /**
+     * Publish post (wrapper that calls uploadVideo for consistency)
+     * @param CustomerAccount $account
+     * @param Post $post
+     * @param array $content
+     * @return array
+     */
+    public function publishPost(CustomerAccount $account, Post $post, array $content = []): array
+    {
+        try {
+            // Get first video file
+            $videoFile = $post->postFiles->first();
+            
+            if (!$videoFile) {
+                return $this->errorResponse(ResponseAlias::HTTP_BAD_REQUEST, 'No video file found for YouTube upload');
+            }
+
+            // Upload video using existing uploadVideo method
+            return $this->uploadVideo($videoFile, $post, $account->access_token);
+
+        } catch (\Exception $e) {
+            return $this->errorResponse(ResponseAlias::HTTP_INTERNAL_SERVER_ERROR, 'Publishing failed: ' . $e->getMessage());
+        }
     }
 }

@@ -27,7 +27,7 @@ class UploadPostRequest extends FormRequest
             'tags' => 'nullable|array|max:10',
             'tags.*' => 'string|max:50',
             'target_platforms' => 'nullable|array',
-            'target_platforms.*' => 'string|in:tiktok,x,instagram,facebook,youtube,linkedin',
+            'target_platforms.*' => 'string|in:tiktok,x,instagram,facebook,youtube,linkedin,threads,telegram,pinterest,mastodon,bluesky,snapchat,vimeo,twitch,dailymotion,odysee,reddit,tumblr,truthsocial,minds',
             'scheduled_at' => 'nullable|date|after:now',
             'metadata' => 'nullable|array',
             'files' => 'required|array|min:1|max:10',

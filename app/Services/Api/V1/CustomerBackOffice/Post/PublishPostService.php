@@ -126,6 +126,25 @@ class PublishPostService
                 ];
             }
 
+            // Verify required scopes before publishing (if provider uses OAuth scopes)
+            $requiredScopes = $this->socialMediaManager->getRequiredPublishScopes($platform);
+            if (!empty($requiredScopes)) {
+                $grantedScopes = [];
+                $platformData = json_decode($customerAccount->platform_data ?? '{}', true);
+                if (!empty($platformData['scopes'])) {
+                    $grantedScopes = is_array($platformData['scopes']) ? $platformData['scopes'] : explode(',', (string)$platformData['scopes']);
+                }
+
+                $missing = array_values(array_diff($requiredScopes, $grantedScopes));
+                if (!empty($missing)) {
+                    return [
+                        'success' => false,
+                        'error' => 'Insufficient permissions (scopes) to publish to this platform',
+                        'missing_scopes' => $missing
+                    ];
+                }
+            }
+
             // Prepare content for this platform
             $content = $this->prepareContentForPlatform($post, $platform, $data);
 

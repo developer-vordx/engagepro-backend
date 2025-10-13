@@ -23,7 +23,7 @@ class PublishPostRequest extends FormRequest
     {
         return [
             'platforms' => 'nullable|array',
-            'platforms.*' => 'string|in:tiktok,x,instagram,facebook,youtube,linkedin',
+            'platforms.*' => 'string|in:tiktok,x,instagram,facebook,youtube,linkedin,threads,telegram,pinterest,mastodon,bluesky,snapchat,vimeo,twitch,dailymotion,odysee,reddit,tumblr,truthsocial,minds',
             'publish_immediately' => 'boolean',
             'custom_captions' => 'nullable|array',
             'custom_captions.*' => 'string|max:2000',

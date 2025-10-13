@@ -22,8 +22,27 @@ class SocialMediaManager
     {
         $this->services['tiktok'] = new TikTokService();
         $this->services['x'] = new XService();
-        $this->services['meta'] = new MetaService();
+        $metaService = new MetaService();
+        $this->services['meta'] = $metaService;
+        $this->services['facebook'] = $metaService;
+        $this->services['instagram'] = $metaService;
         $this->services['youtube'] = new YouTubeService();
+        // Newly supported platforms
+        $this->services['linkedin'] = new LinkedInService();
+        $this->services['pinterest'] = new PinterestService();
+        $this->services['mastodon'] = new MastodonService();
+        $this->services['bluesky'] = new BlueskyService();
+        $this->services['telegram'] = new TelegramService();
+        $this->services['threads'] = new ThreadsService();
+        $this->services['snapchat'] = new SnapchatService();
+        $this->services['vimeo'] = new VimeoService();
+        $this->services['twitch'] = new TwitchService();
+        $this->services['dailymotion'] = new DailymotionService();
+        $this->services['odysee'] = new OdyseeService();
+        $this->services['reddit'] = new RedditService();
+        $this->services['tumblr'] = new TumblrService();
+        $this->services['truthsocial'] = new TruthSocialService();
+        $this->services['minds'] = new MindsService();
         // Add other services as they're implemented
     }
 
@@ -39,6 +58,41 @@ class SocialMediaManager
     public function getSupportedPlatforms(): array
     {
         return array_keys($this->services);
+    }
+
+    /**
+     * Minimal publish scopes required per platform (latest APIs - 2025)
+     * Note: Some platforms don't expose OAuth scopes publicly or use app passwords/bots.
+     */
+    public function getRequiredPublishScopes(string $platform): array
+    {
+        return match ($platform) {
+            // Fully implemented platforms with OAuth 2.0
+            'tiktok' => ['video.upload'],
+            'x' => ['tweet.write'],
+            'facebook' => ['pages_manage_posts'],
+            'instagram' => ['instagram_content_publish'],
+            'meta' => ['pages_manage_posts', 'instagram_content_publish'],
+            'youtube' => ['https://www.googleapis.com/auth/youtube.upload'],
+            'linkedin' => ['w_member_social'],
+            'pinterest' => ['pins:write'],
+            'reddit' => ['submit'],
+            'tumblr' => ['write'],
+            'mastodon' => ['write:statuses'],
+            'vimeo' => ['upload'],
+            'dailymotion' => ['manage_videos'],
+            
+            // Limited/special auth flows
+            'twitch' => ['channel:manage:broadcast'], // Streaming platform
+            'telegram' => [], // Bot API with token (no OAuth)
+            'threads' => ['threads_content_publish'], // Meta infrastructure
+            'bluesky' => [], // App password authentication (no OAuth scopes)
+            'snapchat' => [], // Login Kit - auth only (no content posting)
+            'odysee' => [], // LBRY API key (no OAuth)
+            'truthsocial' => ['write:statuses'], // Mastodon-compatible
+            'minds' => [], // Cookie-based (no OAuth)
+            default => [],
+        };
     }
 
     public function publishToMultiplePlatforms(Post $post): array

@@ -75,15 +75,11 @@ class XService
      * Generate authorization URL with PKCE
      * @param array $scopes
      * @return string
-     * @throws RandomException
      */
     public function getAuthorizationUrl(array $scopes = []): string
     {
         $scopes = empty($scopes) ? $this->scopes : $scopes;
-        $codeVerifier = bin2hex(random_bytes(64));
-        session(['x_code_verifier' => $codeVerifier]);
-
-        $codeChallenge = rtrim(strtr(base64_encode(hash('sha256', $codeVerifier, true)), '+/', '-_'), '=');
+        $pkce = Helper::generatePKCE('x_code_verifier');
 
         $params = [
             'response_type' => 'code',
@@ -91,8 +87,8 @@ class XService
             'redirect_uri' => $this->redirectUri,
             'scope' => implode(' ', $scopes),
             'state' => csrf_token(),
-            'code_challenge' => $codeChallenge,
-            'code_challenge_method' => 'S256',
+            'code_challenge' => $pkce['code_challenge'],
+            'code_challenge_method' => $pkce['code_challenge_method'],
         ];
 
         return 'https://twitter.com/i/oauth2/authorize?' . http_build_query($params);
@@ -110,7 +106,7 @@ class XService
 
         $headers = [
             'Content-Type' => 'application/x-www-form-urlencoded',
-            'Authorization' => 'Basic ' . base64_encode($this->clientId . ':' . $this->clientSecret)
+            'Authorization' => Helper::buildBasicAuthHeader($this->clientId, $this->clientSecret)
         ];
 
         $data = [
@@ -138,7 +134,7 @@ class XService
     {
         $headers = [
             'Content-Type' => 'application/x-www-form-urlencoded',
-            'Authorization' => 'Basic ' . base64_encode($this->clientId . ':' . $this->clientSecret)
+            'Authorization' => Helper::buildBasicAuthHeader($this->clientId, $this->clientSecret)
         ];
 
         $data = [
@@ -299,7 +295,7 @@ class XService
     {
         $timestamp = time();
         $nonce = uniqid();
-        
+
         $oauthParams = [
             'oauth_consumer_key' => $this->apiKey,
             'oauth_nonce' => $nonce,
@@ -308,7 +304,7 @@ class XService
             'oauth_token' => $this->accessToken,
             'oauth_version' => '1.0'
         ];
-        
+
         // Filter out CURLFile objects and other non-string values for signature
         $signatureParams = [];
         foreach ($params as $key => $value) {
@@ -316,35 +312,35 @@ class XService
                 $signatureParams[$key] = (string)$value;
             }
         }
-        
+
         // For POST requests, include Content-Type in signature if present
         if ($method === 'POST' && isset($headers['Content-Type'])) {
             $signatureParams['oauth_content_type'] = $headers['Content-Type'];
         }
-        
+
         // Merge all parameters
         $allParams = array_merge($signatureParams, $oauthParams);
         ksort($allParams);
-        
+
         // Create parameter string
         $paramString = '';
         foreach ($allParams as $key => $value) {
             $paramString .= "{$key}={$value}&";
         }
         $paramString = rtrim($paramString, '&');
-        
+
         // Create signature base string
         $signatureBase = strtoupper($method) . '&' . rawurlencode($url) . '&' . rawurlencode($paramString);
-        
+
         // Create signing key
         $signingKey = rawurlencode($this->apiSecret) . '&' . rawurlencode($this->accessTokenSecret);
-        
+
         // Generate signature
         $signature = base64_encode(hash_hmac('sha1', $signatureBase, $signingKey, true));
-        
+
         // Add signature to OAuth params
         $oauthParams['oauth_signature'] = $signature;
-        
+
         // Create Authorization header
         $authHeader = 'OAuth ';
         $authParts = [];
@@ -352,16 +348,16 @@ class XService
             $authParts[] = "{$key}=\"" . rawurlencode($value) . "\"";
         }
         $authHeader .= implode(', ', $authParts);
-        
+
         $result = [
             'Authorization' => $authHeader
         ];
-        
+
         // Add Content-Type header if provided
         if (isset($headers['Content-Type'])) {
             $result['Content-Type'] = $headers['Content-Type'];
         }
-        
+
         return $result;
     }
 
@@ -377,15 +373,15 @@ class XService
     {
         // For Twitter API v1.1, we need to use OAuth1 authentication
         $url = 'https://upload.twitter.com/1.1/media/upload.json';
-        
+
         // For Twitter API v1.1, we need to send as form data, not multipart
         $data = [
             'media_category' => 'tweet_image',
             'media_data' => base64_encode(file_get_contents($filePath))
         ];
-        
+
         $headers = $this->generateOAuth1Signature('POST', $url, $data);
-        
+
         // Add Content-Type for form data
         $headers['Content-Type'] = 'application/x-www-form-urlencoded';
 
@@ -446,7 +442,7 @@ class XService
 
         while (!feof($fileHandle)) {
             $chunk = fread($fileHandle, $chunkSize);
-            
+
             $chunkData = [
                 'command' => 'APPEND',
                 'media_id' => $mediaId,
@@ -500,7 +496,7 @@ class XService
         try {
             // Get post files
             $postFiles = PostFile::where('post_id', $post->id)->get();
-            
+
             if ($postFiles->isEmpty()) {
                 return [
                     'header_code' => ResponseAlias::HTTP_BAD_REQUEST,
@@ -509,11 +505,11 @@ class XService
             }
 
             $mediaIds = [];
-            
+
             // Upload media files
             foreach ($postFiles as $file) {
                 $filePath = Storage::disk('private')->path($file->file_path);
-                
+
                 if (!file_exists($filePath)) {
                     return [
                         'header_code' => ResponseAlias::HTTP_BAD_REQUEST,
@@ -522,7 +518,7 @@ class XService
                 }
 
                 $uploadResult = $this->uploadMedia($customerAccount->access_token, $filePath);
-                
+
                 if ($uploadResult['header_code'] != ResponseAlias::HTTP_OK) {
                     return $uploadResult;
                 }
@@ -539,7 +535,7 @@ class XService
             // Use OAuth 1.0a for posting tweets with Twitter API v1.1
             $url = 'https://api.twitter.com/1.1/statuses/update.json';
             $headers = $this->generateOAuth1Signature('POST', $url, $tweetData);
-            
+
             // Add Content-Type for form data
             $headers['Content-Type'] = 'application/x-www-form-urlencoded';
 
@@ -620,13 +616,13 @@ class XService
      */
     private function calculateEngagementRate(array $metrics): float
     {
-        $totalEngagement = ($metrics['like_count'] ?? 0) + 
-                          ($metrics['retweet_count'] ?? 0) + 
-                          ($metrics['reply_count'] ?? 0) + 
+        $totalEngagement = ($metrics['like_count'] ?? 0) +
+                          ($metrics['retweet_count'] ?? 0) +
+                          ($metrics['reply_count'] ?? 0) +
                           ($metrics['quote_count'] ?? 0);
-        
+
         $impressions = $metrics['impression_count'] ?? 1;
-        
+
         return $impressions > 0 ? round(($totalEngagement / $impressions) * 100, 2) : 0;
     }
 
@@ -650,14 +646,6 @@ class XService
         return str_starts_with($mimeType, 'video/');
     }
 
-    /**
-     * Get supported media types
-     * @return array
-     */
-    public function getSupportedMediaTypes(): array
-    {
-        return $this->supportedMediaTypes;
-    }
 
     /**
      * Validate content for X
@@ -705,34 +693,73 @@ class XService
         ];
     }
 
-    /**
-     * Get posting limits
-     * @return array
-     */
-    public function getPostingLimits(): array
-    {
-        return [
-            'max_posts_per_day' => 300,
-            'max_posts_per_hour' => 25,
-            'max_file_size_mb' => 512,
-            'supported_formats' => ['mp4', 'mov', 'jpg', 'png', 'gif'],
-            'max_video_duration_seconds' => 140,
-            'max_text_length' => 280,
-            'max_media_per_tweet' => 4,
-        ];
-    }
 
     /**
-     * Get available scopes
+     * Get available scopes (OAuth 2.0 - Latest X API)
      * @return array
      */
     public function getAvailableScopes(): array
     {
         return [
-            'tweet.read' => 'Read Tweets and profiles',
-            'tweet.write' => 'Create, edit, and delete Tweets',
-            'users.read' => 'Read profile information',
-            'offline.access' => 'Access to refresh tokens',
+            // Tweet scopes
+            'tweet.read' => 'Read Tweets',
+            'tweet.write' => 'Create and delete Tweets',
+            'tweet.moderate.write' => 'Hide and unhide replies to your Tweets',
+
+            // User scopes
+            'users.read' => 'Read user profile information',
+
+            // Follows scopes
+            'follows.read' => 'Read follows, mutes, and blocks',
+            'follows.write' => 'Follow and unfollow users',
+
+            // Offline access
+            'offline.access' => 'Get refresh tokens',
+
+            // Space scopes
+            'space.read' => 'Read Spaces',
+
+            // Mute scopes
+            'mute.read' => 'Read muted users',
+            'mute.write' => 'Mute and unmute users',
+
+            // Like scopes
+            'like.read' => 'Read likes',
+            'like.write' => 'Like and unlike Tweets',
+
+            // List scopes
+            'list.read' => 'Read Lists',
+            'list.write' => 'Create and manage Lists',
+
+            // Block scopes
+            'block.read' => 'Read blocked users',
+            'block.write' => 'Block and unblock users',
+
+            // Bookmark scopes
+            'bookmark.read' => 'Read bookmarked Tweets',
+            'bookmark.write' => 'Bookmark and unbookmark Tweets',
+        ];
+    }
+
+    public function getSupportedMediaTypes(): array
+    {
+        return is_array($this->supportedMediaTypes) ? $this->supportedMediaTypes : json_decode($this->supportedMediaTypes, true) ?? ['image', 'video', 'text'];
+    }
+
+    public function getPostingLimits(): array
+    {
+        return [
+            'max_posts_per_day' => 300, // Free tier: 17 per day, Basic: 100, Pro: higher
+            'max_posts_per_hour' => 25,
+            'max_file_size_mb' => 512,
+            'supported_image_formats' => ['jpg', 'jpeg', 'png', 'gif', 'webp'],
+            'supported_video_formats' => ['mp4'],
+            'max_video_duration_seconds' => 140,
+            'max_text_length' => 280,
+            'max_media_per_tweet' => 4,
+            'max_image_size_mb' => 5,
+            'max_video_size_mb' => 512,
         ];
     }
 }
+
