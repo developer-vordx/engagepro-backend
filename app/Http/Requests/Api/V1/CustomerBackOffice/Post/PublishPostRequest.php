@@ -23,17 +23,23 @@ class PublishPostRequest extends FormRequest
     {
         return [
             'platforms' => 'nullable|array',
-            'platforms.*' => 'string|in:tiktok,x,instagram,facebook,youtube,linkedin'
+            'platforms.*' => 'string|in:tiktok,x,instagram,facebook,youtube,linkedin',
+            'publish_immediately' => 'boolean',
+            'custom_captions' => 'nullable|array',
+            'custom_captions.*' => 'string|max:2000',
         ];
     }
 
     /**
      * Get custom messages for validator errors.
+     *
+     * @return array
      */
     public function messages(): array
     {
         return [
-            'platforms.*.in' => 'Invalid platform selected for publishing'
+            'platforms.*.in' => 'Invalid platform specified',
+            'custom_captions.*.max' => 'Custom caption cannot exceed 2000 characters',
         ];
     }
 }

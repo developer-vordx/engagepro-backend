@@ -6,11 +6,15 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\CustomerBackOffice\Post\CreatePostRequest;
 use App\Http\Requests\Api\V1\CustomerBackOffice\Post\UpdatePostRequest;
 use App\Http\Requests\Api\V1\CustomerBackOffice\Post\PublishPostRequest;
+use App\Http\Requests\Api\V1\CustomerBackOffice\Post\UploadPostRequest;
 use App\Models\Post;
 use App\Models\PostFile;
 use App\Models\CustomerAccount;
 use App\Models\SocialPost;
 use App\Library\SocialManager\SocialMediaManager;
+use App\Services\Api\V1\CustomerBackOffice\Post\UploadPostService;
+use App\Services\Api\V1\CustomerBackOffice\Post\PublishPostService;
+use App\Services\Api\V1\CustomerBackOffice\Post\PostStatsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -95,7 +99,7 @@ class PostController extends Controller
             DB::beginTransaction();
 
             $customer = Auth::guard('customer')->user();
-            
+
             // Create the post
             $post = Post::create([
                 'customer_id' => $customer->id,
@@ -350,9 +354,9 @@ class PostController extends Controller
     {
         $fileName = time() . '_' . $file->getClientOriginalName();
         $filePath = $file->storeAs('posts/' . $post->id, $fileName, 'private');
-        
+
         $fileType = str_starts_with($file->getMimeType(), 'video/') ? 'video' : 'image';
-        
+
         PostFile::create([
             'post_id' => $post->id,
             'file_path' => $filePath,
@@ -386,6 +390,77 @@ class PostController extends Controller
             return Helper::response([
                 'post_id' => $post->id,
                 'analytics' => $analytics
+            ], ResponseAlias::HTTP_OK);
+
+        } catch (\Exception $e) {
+            return Helper::errors($e);
+        }
+    }
+
+    /**
+     * Upload a new post with files
+     */
+    public function upload(UploadPostRequest $request, UploadPostService $uploadService)
+    {
+        $data = $request->validated();
+        $data['subscription'] = $request->get('subscription');
+
+        return $uploadService->handle($data);
+    }
+
+    /**
+     * Publish a post to social media platforms
+     */
+    public function publishToSocial(PublishPostRequest $request, $id, PublishPostService $publishService)
+    {
+        $data = $request->validated();
+        $data['subscription'] = $request->get('subscription');
+
+        return $publishService->handle($id, $data);
+    }
+
+    /**
+     * Get post statistics
+     */
+    public function stats(Request $request, PostStatsService $statsService)
+    {
+        $postId = $request->get('post_id');
+        return $statsService->handle($postId);
+    }
+
+    /**
+     * Get subscription information
+     */
+    public function subscriptionInfo()
+    {
+        try {
+            $customer = Auth::guard('customer')->user();
+            $subscription = $customer->subscriptionPlan;
+
+            if (!$subscription) {
+                return Helper::response('No active subscription found', ResponseAlias::HTTP_NOT_FOUND);
+            }
+
+            $plan = $subscription->subscriptionPlan;
+
+            return Helper::response([
+                'subscription' => [
+                    'plan_name' => $plan->name,
+                    'plan_description' => $plan->description,
+                    'price' => $plan->price,
+                    'currency' => $plan->currency,
+                    'max_posts_per_month' => $plan->max_posts_per_month,
+                    'posts_this_month' => $subscription->posts_this_month,
+                    'posts_remaining' => max(0, $plan->max_posts_per_month - $subscription->posts_this_month),
+                    'max_file_size_mb' => $plan->max_file_size_mb,
+                    'analytics_access' => $plan->analytics_access,
+                    'api_access' => $plan->api_access,
+                    'priority_support' => $plan->priority_support,
+                    'custom_branding' => $plan->custom_branding,
+                    'starts_at' => $subscription->starts_at,
+                    'ends_at' => $subscription->ends_at,
+                    'is_active' => $subscription->isActive(),
+                ]
             ], ResponseAlias::HTTP_OK);
 
         } catch (\Exception $e) {
