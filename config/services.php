@@ -15,30 +15,30 @@ return [
     */
 
     'postmark' => [
-        'token' => env('POSTMARK_TOKEN'),
+        'token' => env('POSTMARK_TOKEN', ''),
     ],
 
     'ses' => [
-        'key' => env('AWS_ACCESS_KEY_ID'),
-        'secret' => env('AWS_SECRET_ACCESS_KEY'),
+        'key' => env('AWS_ACCESS_KEY_ID', ''),
+        'secret' => env('AWS_SECRET_ACCESS_KEY', ''),
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
     'resend' => [
-        'key' => env('RESEND_KEY'),
+        'key' => env('RESEND_KEY', ''),
     ],
 
     'slack' => [
         'notifications' => [
-            'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),
-            'channel' => env('SLACK_BOT_USER_DEFAULT_CHANNEL'),
+            'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN', ''),
+            'channel' => env('SLACK_BOT_USER_DEFAULT_CHANNEL', ''),
         ],
     ],
 
     'google' => [
-        'client_id' => env('GOOGLE_CLIENT_ID'),
-        'client_secret' => env('GOOGLE_CLIENT_SECRET'),
-        'redirect' => env('GOOGLE_REDIRECT_URL'),
+        'client_id' => env('GOOGLE_CLIENT_ID', ''),
+        'client_secret' => env('GOOGLE_CLIENT_SECRET', ''),
+        'redirect' => env('GOOGLE_REDIRECT_URL', ''),
     ],
 
     'twitter' => [
@@ -136,13 +136,13 @@ return [
     ],
 
     'twilio' => [
-        'sid' => env('TWILIO_SID'),
-        'token' => env('TWILIO_AUTH_TOKEN'),
-        'from' => env('TWILIO_PHONE_NUMBER'),
+        'sid' => env('TWILIO_SID', ''),
+        'token' => env('TWILIO_AUTH_TOKEN', ''),
+        'from' => env('TWILIO_PHONE_NUMBER', ''),
     ],
     'tiktok' => [
-        'client_id' => env('TIKTOK_CLIENT_ID'),
-        'client_secret' => env('TIKTOK_CLIENT_SECRET'),
+        'client_id' => env('TIKTOK_CLIENT_ID', ''),
+        'client_secret' => env('TIKTOK_CLIENT_SECRET', ''),
         'redirect_uri' => env('TIKTOK_REDIRECT_URL', env('APP_URL') . '/auth/tiktok/callback'),
     ],
 
