@@ -60,7 +60,7 @@ class GetAuthUrlService implements GetAuthUrlInterface
             ->where('customer_id', $customer->id)
             ->count();
 
-        $maxAccounts = $customer->subscriptionPlan?->max_social_accounts_per_platform ?? 1;
+        $maxAccounts = $customer->subscription?->plan->max_accounts_per_platform ?? 1;
 
         return $currentCount < $maxAccounts;
     }

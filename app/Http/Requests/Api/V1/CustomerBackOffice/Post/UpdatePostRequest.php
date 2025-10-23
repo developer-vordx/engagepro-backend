@@ -2,9 +2,9 @@
 
 namespace App\Http\Requests\Api\V1\CustomerBackOffice\Post;
 
-use Illuminate\Foundation\Http\FormRequest;
+use App\Utils\BaseRequest;
 
-class UpdatePostRequest extends FormRequest
+class UpdatePostRequest extends BaseRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -12,6 +12,33 @@ class UpdatePostRequest extends FormRequest
     public function authorize(): bool
     {
         return true;
+    }
+
+    /**
+     * Prepare the data for validation.
+     */
+    protected function prepareForValidation(): void
+    {
+        // Convert tags from string to array if needed
+        if ($this->has('tags') && is_string($this->tags)) {
+            $this->merge([
+                'tags' => array_filter(array_map('trim', explode(',', $this->tags)))
+            ]);
+        }
+
+        // Convert target_platforms from string to array if needed
+        if ($this->has('target_platforms') && is_string($this->target_platforms)) {
+            $this->merge([
+                'target_platforms' => array_filter(array_map('trim', explode(',', $this->target_platforms)))
+            ]);
+        }
+
+        // Convert delete_files from string to array if needed
+        if ($this->has('delete_files') && is_string($this->delete_files)) {
+            $this->merge([
+                'delete_files' => array_filter(array_map('intval', explode(',', $this->delete_files)))
+            ]);
+        }
     }
 
     /**

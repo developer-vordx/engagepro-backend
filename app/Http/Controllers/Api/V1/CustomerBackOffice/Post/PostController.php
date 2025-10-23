@@ -237,8 +237,8 @@ class PostController extends Controller
             }
 
             // Check subscription limits
-            $subscription = $customer->subscriptionPlan;
-            if ($subscription && $subscription->posts_this_month >= $subscription->max_posts_per_month) {
+            $subscription = $customer->subscription;
+            if ($subscription && !$subscription->canCreatePost()) {
                 return Helper::response('Monthly post limit reached. Upgrade your subscription.', ResponseAlias::HTTP_FORBIDDEN);
             }
 
@@ -330,7 +330,7 @@ class PostController extends Controller
 
             // Update subscription post count
             if ($hasSuccessfulPublishes && $subscription) {
-                $subscription->increment('posts_this_month');
+                $subscription->incrementPostUsage();
             }
 
             DB::commit();
@@ -435,31 +435,33 @@ class PostController extends Controller
     {
         try {
             $customer = Auth::guard('customer')->user();
-            $subscription = $customer->subscriptionPlan;
+            $subscription = $customer->subscription;
 
             if (!$subscription) {
                 return Helper::response('No active subscription found', ResponseAlias::HTTP_NOT_FOUND);
             }
 
-            $plan = $subscription->subscriptionPlan;
+            $plan = $subscription->plan;
 
             return Helper::response([
                 'subscription' => [
                     'plan_name' => $plan->name,
                     'plan_description' => $plan->description,
                     'price' => $plan->price,
-                    'currency' => $plan->currency,
+                    'type' => $plan->type,
                     'max_posts_per_month' => $plan->max_posts_per_month,
                     'posts_this_month' => $subscription->posts_this_month,
-                    'posts_remaining' => max(0, $plan->max_posts_per_month - $subscription->posts_this_month),
+                    'posts_remaining' => $subscription->getRemainingPosts(),
                     'max_file_size_mb' => $plan->max_file_size_mb,
-                    'analytics_access' => $plan->analytics_access,
                     'api_access' => $plan->api_access,
                     'priority_support' => $plan->priority_support,
                     'custom_branding' => $plan->custom_branding,
+                    'max_accounts_per_platform' => $plan->max_accounts_per_platform,
+                    'analytics_retention_days' => $plan->analytics_retention_days,
                     'starts_at' => $subscription->starts_at,
                     'ends_at' => $subscription->ends_at,
                     'is_active' => $subscription->isActive(),
+                    'days_until_expiry' => $subscription->getDaysUntilExpiry(),
                 ]
             ], ResponseAlias::HTTP_OK);
 

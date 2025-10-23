@@ -2,9 +2,9 @@
 
 namespace App\Http\Requests\Api\V1\CustomerBackOffice\Post;
 
-use Illuminate\Foundation\Http\FormRequest;
+use App\Utils\BaseRequest;
 
-class UploadPostRequest extends FormRequest
+class UploadPostRequest extends BaseRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -12,6 +12,26 @@ class UploadPostRequest extends FormRequest
     public function authorize(): bool
     {
         return true;
+    }
+
+    /**
+     * Prepare the data for validation.
+     */
+    protected function prepareForValidation(): void
+    {
+        // Convert tags from string to array if needed
+        if ($this->has('tags') && is_string($this->tags)) {
+            $this->merge([
+                'tags' => array_filter(array_map('trim', explode(',', $this->tags)))
+            ]);
+        }
+
+        // Convert target_platforms from string to array if needed
+        if ($this->has('target_platforms') && is_string($this->target_platforms)) {
+            $this->merge([
+                'target_platforms' => array_filter(array_map('trim', explode(',', $this->target_platforms)))
+            ]);
+        }
     }
 
     /**

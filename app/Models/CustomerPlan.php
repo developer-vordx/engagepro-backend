@@ -86,7 +86,7 @@ class CustomerPlan extends Model
             $this->resetMonthlyUsage();
         }
 
-        return $this->posts_this_month < $this->subscriptionPlan->max_posts_per_month;
+        return $this->posts_this_month < $this->plan->max_posts_per_month;
     }
 
     public function incrementPostUsage(): void
@@ -104,7 +104,7 @@ class CustomerPlan extends Model
 
     public function getRemainingPosts(): int
     {
-        return max(0, $this->subscriptionPlan->max_posts_per_month - $this->posts_this_month);
+        return max(0, $this->plan->max_posts_per_month - $this->posts_this_month);
     }
 
     public function getDaysUntilExpiry(): int

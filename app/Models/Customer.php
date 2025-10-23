@@ -65,7 +65,7 @@ class Customer extends Authenticatable implements JWTSubject
         return $this->hasOne(CustomerPlan::class)->where('status', 'active');
     }
 
-    public function subscriptionPlan(): HasOne
+    public function activePlan(): HasOne
     {
         return $this->hasOne(CustomerPlan::class)->where('status', 'active');
     }
@@ -118,6 +118,6 @@ class Customer extends Authenticatable implements JWTSubject
         $subscription = $this->subscription;
         if (!$subscription) return false;
 
-        return $this->getMonthlyPostsCount() < $subscription->subscriptionPlan->max_posts_per_month;
+        return $this->getMonthlyPostsCount() < $subscription->plan->max_posts_per_month;
     }
 }

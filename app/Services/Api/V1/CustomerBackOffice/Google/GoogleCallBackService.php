@@ -31,10 +31,16 @@ class GoogleCallBackService implements GoogleCallBackInterface
                 ]
             );
 
+            // Update status to active and last_login
+            $customer->update([
+                'status' => true,
+                'last_login' => now(),
+            ]);
+
             // Generate token directly from the user
             $token = Auth::guard('customer')->login($customer);
 
-            $frontendUrl = env('FRONTEND_URL', 'http://localhost:5173/callback');
+            $frontendUrl = env('FRONTEND_URL', 'http://localhost:3000/callback');
             return redirect($frontendUrl . '?token=' . $token);
 
         } catch (\Exception $e) {

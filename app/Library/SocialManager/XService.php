@@ -79,6 +79,12 @@ class XService
     public function getAuthorizationUrl(array $scopes = []): string
     {
         $scopes = empty($scopes) ? $this->scopes : $scopes;
+        
+        // Ensure scopes is an array
+        if (is_string($scopes)) {
+            $scopes = Helper::parseScopes($scopes);
+        }
+        
         $pkce = Helper::generatePKCE('x_code_verifier');
 
         $params = [

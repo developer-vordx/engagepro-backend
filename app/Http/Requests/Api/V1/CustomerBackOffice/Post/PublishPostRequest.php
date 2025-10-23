@@ -2,9 +2,9 @@
 
 namespace App\Http\Requests\Api\V1\CustomerBackOffice\Post;
 
-use Illuminate\Foundation\Http\FormRequest;
+use App\Utils\BaseRequest;
 
-class PublishPostRequest extends FormRequest
+class PublishPostRequest extends BaseRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -12,6 +12,19 @@ class PublishPostRequest extends FormRequest
     public function authorize(): bool
     {
         return true;
+    }
+
+    /**
+     * Prepare the data for validation.
+     */
+    protected function prepareForValidation(): void
+    {
+        // Convert platforms from string to array if needed
+        if ($this->has('platforms') && is_string($this->platforms)) {
+            $this->merge([
+                'platforms' => array_filter(array_map('trim', explode(',', $this->platforms)))
+            ]);
+        }
     }
 
     /**

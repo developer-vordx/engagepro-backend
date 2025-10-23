@@ -68,6 +68,11 @@ class YouTubeService
     {
         $scopes = empty($scopes) ? $this->scopes : $scopes;
         
+        // Ensure scopes is an array
+        if (is_string($scopes)) {
+            $scopes = Helper::parseScopes($scopes);
+        }
+
         $params = [
             'client_id' => $this->clientId,
             'redirect_uri' => $this->redirectUri,

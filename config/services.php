@@ -41,15 +41,31 @@ return [
         'redirect' => env('GOOGLE_REDIRECT_URL', ''),
     ],
 
+    // Socialite configuration for Facebook login
+    'facebook' => [
+        'client_id' => env('META_APP_ID', ''),  // Uses Meta App ID
+        'client_secret' => env('META_APP_SECRET', ''),  // Uses Meta App Secret
+        'redirect' => env('FACEBOOK_REDIRECT_URL', env('APP_URL') . '/v1/facebook/callback'),
+    ],
+
+    // Socialite configuration for Twitter/X login
     'twitter' => [
         'api_key' => env('TWITTER_API_KEY', ''),
         'api_secret' => env('TWITTER_API_SECRET', ''),
         'client_id' => env('TWITTER_CLIENT_ID', ''),
         'client_secret' => env('TWITTER_CLIENT_SECRET', ''),
+        'redirect' => env('TWITTER_REDIRECT_URL', env('APP_URL') . '/v1/x/callback'),
         'redirect_uri' => env('TWITTER_REDIRECT_URI', ''),
         'bearer_token' => env('TWITTER_BEARER_TOKEN', ''),
         'access_token' => env('TWITTER_ACCESS_TOKEN', ''),
         'access_token_secret' => env('TWITTER_ACCESS_TOKEN_SECRET', ''),
+    ],
+
+    // Socialite configuration for LinkedIn login
+    'linkedin-openid' => [
+        'client_id' => env('LINKEDIN_CLIENT_ID', ''),
+        'client_secret' => env('LINKEDIN_CLIENT_SECRET', ''),
+        'redirect' => env('LINKEDIN_REDIRECT_URL', env('APP_URL') . '/v1/linkedin/callback'),
     ],
 
     'meta' => [
@@ -71,7 +87,7 @@ return [
     'linkedin' => [
         'client_id' => env('LINKEDIN_CLIENT_ID', ''),
         'client_secret' => env('LINKEDIN_CLIENT_SECRET', ''),
-        'redirect_uri' => env('LINKEDIN_REDIRECT_URI', ''),
+        'redirect_uri' => env('LINKEDIN_REDIRECT_URI', ''), // For social posting
     ],
 
     'pinterest' => [

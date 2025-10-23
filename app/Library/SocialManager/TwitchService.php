@@ -49,7 +49,12 @@ class TwitchService
      */
     public function getAuthorizationUrl(array $scopes = []): string
     {
-        $scopes = empty($scopes) ? (is_array($this->scopes) ? $this->scopes : json_decode($this->scopes, true)) : $scopes;
+        $scopes = empty($scopes) ? $this->scopes : $scopes;
+        
+        // Ensure scopes is an array
+        if (is_string($scopes)) {
+            $scopes = Helper::parseScopes($scopes);
+        }
         
         $params = [
             'client_id' => $this->clientId,

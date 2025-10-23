@@ -24,7 +24,7 @@ class EmailVerificationJob implements ShouldQueue
     {
         $this->customer = $customer;
         $this->token = $token;
-        $this->onQueue('forgot-password');
+        $this->onQueue('verify-password');
     }
 
     /**

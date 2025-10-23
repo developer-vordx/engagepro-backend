@@ -23,8 +23,10 @@ class UpdateProfileRequest extends BaseRequest
     public function rules(): array
     {
         return [
-            'name' => 'required|max:100',
-            'phone' => 'required|max:20',
+            'name' => 'sometimes|required|max:100',
+            'phone' => 'sometimes|required|max:20',
+            'company' => 'nullable|max:255',
+            'timezone' => 'nullable|string|max:50',
         ];
     }
 
@@ -35,6 +37,8 @@ class UpdateProfileRequest extends BaseRequest
             'name.max' => 'Name must be less than 100 characters',
             'phone.required' => 'Phone is required',
             'phone.max' => 'Phone must be less than 20 characters',
+            'company.max' => 'Company name must be less than 255 characters',
+            'timezone.max' => 'Timezone must be less than 50 characters',
         ];
     }
 }

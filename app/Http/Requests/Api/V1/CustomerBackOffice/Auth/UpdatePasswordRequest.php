@@ -24,7 +24,8 @@ class UpdatePasswordRequest extends BaseRequest
     {
         return [
             'current_password' => 'required|max:150',
-            'password' => 'required|confirmed|regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{12,}$/',
+            'new_password' => 'required|confirmed|min:8|regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,}$/',
+            'new_password_confirmation' => 'required',
         ];
     }
 
@@ -33,9 +34,11 @@ class UpdatePasswordRequest extends BaseRequest
         return [
             'current_password.required' => 'Current password is required',
             'current_password.max' => 'Current password must be at least 150 characters',
-            'password.required' => 'Password is required.',
-            'password.confirmed' => 'Password should match the confirmed password.',
-            'password.regex' => 'Password must be at least 12 characters long and include at least one uppercase letter, one lowercase letter, one number, and one special character.',
+            'new_password.required' => 'New password is required',
+            'new_password.confirmed' => 'Password confirmation does not match',
+            'new_password.min' => 'Password must be at least 8 characters',
+            'new_password.regex' => 'Password must include at least one uppercase letter, one lowercase letter, one number, and one special character',
+            'new_password_confirmation.required' => 'Password confirmation is required',
         ];
     }
 }

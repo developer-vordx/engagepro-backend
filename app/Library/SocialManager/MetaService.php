@@ -71,6 +71,11 @@ class MetaService
     {
         $scopes = empty($scopes) ? $this->scopes : $scopes;
 
+        
+        // Ensure scopes is an array
+        if (is_string($scopes)) {
+            $scopes = Helper::parseScopes($scopes);
+        }
         $params = [
             'client_id' => $this->appId,
             'redirect_uri' => $this->redirectUri,

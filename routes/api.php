@@ -16,9 +16,24 @@ Route::prefix('v1')->middleware(['request_logs'])->group(function () {
     Route::post('set-password', [\App\Http\Controllers\Api\V1\CustomerBackOffice\Auth\PasswordController::class, 'setPassword']);
     Route::post('verify-email', [\App\Http\Controllers\Api\V1\CustomerBackOffice\Auth\PasswordController::class, 'verifyEmail']);
 
+    // Public Plans route
+    Route::get('plans', [\App\Http\Controllers\Api\V1\CustomerBackOffice\Plan\PlanController::class, 'index']);
+    
     // OAuth routes
     Route::get('google', [\App\Http\Controllers\Api\V1\CustomerBackOffice\Auth\GoogleAuthController::class, 'redirectToGoogle']);
     Route::get('google/callback', [\App\Http\Controllers\Api\V1\CustomerBackOffice\Auth\GoogleAuthController::class, 'handleGoogleCallback']);
+    
+    Route::get('facebook', [\App\Http\Controllers\Api\V1\CustomerBackOffice\Auth\FacebookAuthController::class, 'redirectToFacebook']);
+    Route::get('facebook/callback', [\App\Http\Controllers\Api\V1\CustomerBackOffice\Auth\FacebookAuthController::class, 'handleFacebookCallback']);
+    
+    Route::get('x', [\App\Http\Controllers\Api\V1\CustomerBackOffice\Auth\XAuthController::class, 'redirectToX']);
+    Route::get('x/callback', [\App\Http\Controllers\Api\V1\CustomerBackOffice\Auth\XAuthController::class, 'handleXCallback']);
+    
+    Route::get('linkedin', [\App\Http\Controllers\Api\V1\CustomerBackOffice\Auth\LinkedInAuthController::class, 'redirectToLinkedIn']);
+    Route::get('linkedin/callback', [\App\Http\Controllers\Api\V1\CustomerBackOffice\Auth\LinkedInAuthController::class, 'handleLinkedInCallback']);
+    
+    Route::get('tiktok', [\App\Http\Controllers\Api\V1\CustomerBackOffice\Auth\TikTokAuthController::class, 'redirectToTikTok']);
+    Route::get('tiktok/callback', [\App\Http\Controllers\Api\V1\CustomerBackOffice\Auth\TikTokAuthController::class, 'handleTikTokCallback']);
 
     // Protected customer routes
     Route::prefix('customerBackOffice')->middleware(['customer.auth'])->group(function () {
@@ -31,8 +46,30 @@ Route::prefix('v1')->middleware(['request_logs'])->group(function () {
 
         // Social media integration routes
         Route::prefix('social')->group(function () {
+            // Get all available platforms
+            Route::get('/platforms', [\App\Http\Controllers\Api\V1\CustomerBackOffice\Social\PlatformController::class, 'index']);
+            
+            // OAuth flow
             Route::get('/{platform}/auth-url', [SocialController::class, 'getAuthUrl']);
             Route::post('/{platform}/callback', [SocialController::class, 'handleCallback']);
+            
+            // Social account management
+            Route::get('/accounts', [\App\Http\Controllers\Api\V1\CustomerBackOffice\Social\SocialAccountController::class, 'index']);
+            Route::get('/accounts/{id}', [\App\Http\Controllers\Api\V1\CustomerBackOffice\Social\SocialAccountController::class, 'show']);
+            Route::delete('/accounts/{id}', [\App\Http\Controllers\Api\V1\CustomerBackOffice\Social\SocialAccountController::class, 'destroy']);
+            Route::post('/accounts/{id}/sync', [\App\Http\Controllers\Api\V1\CustomerBackOffice\Social\SocialAccountController::class, 'sync']);
+        });
+        
+        // Notification routes
+        Route::prefix('notifications')->group(function () {
+            Route::get('/', [\App\Http\Controllers\Api\V1\CustomerBackOffice\Notification\NotificationController::class, 'index']);
+            Route::post('/{id}/read', [\App\Http\Controllers\Api\V1\CustomerBackOffice\Notification\NotificationController::class, 'markAsRead']);
+            Route::delete('/{id}', [\App\Http\Controllers\Api\V1\CustomerBackOffice\Notification\NotificationController::class, 'destroy']);
+        });
+        
+        // Analytics routes
+        Route::prefix('analytics')->group(function () {
+            Route::get('/overview', [\App\Http\Controllers\Api\V1\CustomerBackOffice\Analytics\AnalyticsController::class, 'overview']);
         });
 
         // Post management routes

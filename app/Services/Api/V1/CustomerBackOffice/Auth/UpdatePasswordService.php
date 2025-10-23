@@ -23,7 +23,7 @@ class UpdatePasswordService implements UpdatePasswordInterface
                 );
             }
             PasswordChangedJob::dispatch($request->customer);
-            $request->customer->update(['password' => Hash::make($request->password)]);
+            $request->customer->update(['password' => Hash::make($request->new_password)]);
             DB::commit();
             return Helper::response(
                 'Password updated successfully',

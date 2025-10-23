@@ -19,13 +19,38 @@ class UpdateProfileService implements UpdateProfileInterface
     {
         try {
             DB::beginTransaction();
-            Customer::find($request->customer->id)->update([
+            
+            $updateData = [
                 'name' => $request->name,
                 'phone' => $request->phone,
-            ]);
+            ];
+            
+            // Add optional fields if provided
+            if ($request->has('company')) {
+                $updateData['company'] = $request->company;
+            }
+            
+            if ($request->has('timezone')) {
+                $updateData['timezone'] = $request->timezone;
+            }
+            
+            $customer = Customer::find($request->customer->id);
+            $customer->update($updateData);
+            
             DB::commit();
+            
+            // Return updated customer data
             return Helper::response(
-                'Profile updated successfully',
+                [
+                    'id' => $customer->id,
+                    'name' => $customer->name,
+                    'email' => $customer->email,
+                    'phone' => $customer->phone,
+                    'company' => $customer->company,
+                    'timezone' => $customer->timezone,
+                    'created_at' => $customer->created_at,
+                    'updated_at' => $customer->updated_at,
+                ],
                 ResponseAlias::HTTP_OK
             );
         } catch (\Exception $e) {
