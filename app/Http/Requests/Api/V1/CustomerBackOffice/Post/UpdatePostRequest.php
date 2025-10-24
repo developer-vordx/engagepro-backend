@@ -21,23 +21,44 @@ class UpdatePostRequest extends BaseRequest
     {
         // Convert tags from string to array if needed
         if ($this->has('tags') && is_string($this->tags)) {
-            $this->merge([
-                'tags' => array_filter(array_map('trim', explode(',', $this->tags)))
-            ]);
+            // Check if it's JSON string
+            $decoded = json_decode($this->tags, true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                $this->merge(['tags' => $decoded]);
+            } else {
+                // Comma-separated string
+                $this->merge([
+                    'tags' => array_filter(array_map('trim', explode(',', $this->tags)))
+                ]);
+            }
         }
 
         // Convert target_platforms from string to array if needed
         if ($this->has('target_platforms') && is_string($this->target_platforms)) {
-            $this->merge([
-                'target_platforms' => array_filter(array_map('trim', explode(',', $this->target_platforms)))
-            ]);
+            // Check if it's JSON string
+            $decoded = json_decode($this->target_platforms, true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                $this->merge(['target_platforms' => $decoded]);
+            } else {
+                // Comma-separated string
+                $this->merge([
+                    'target_platforms' => array_filter(array_map('trim', explode(',', $this->target_platforms)))
+                ]);
+            }
         }
 
         // Convert delete_files from string to array if needed
         if ($this->has('delete_files') && is_string($this->delete_files)) {
-            $this->merge([
-                'delete_files' => array_filter(array_map('intval', explode(',', $this->delete_files)))
-            ]);
+            // Check if it's JSON string
+            $decoded = json_decode($this->delete_files, true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                $this->merge(['delete_files' => $decoded]);
+            } else {
+                // Comma-separated string
+                $this->merge([
+                    'delete_files' => array_filter(array_map('intval', explode(',', $this->delete_files)))
+                ]);
+            }
         }
     }
 

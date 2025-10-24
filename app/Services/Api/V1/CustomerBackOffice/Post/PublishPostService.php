@@ -9,6 +9,7 @@ use App\Library\SocialManager\SocialMediaManager;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Storage;
 use App\Helper;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -151,7 +152,7 @@ class PublishPostService
             // Validate content for this platform
             $validation = $service->validateContent(
                 $post->postFiles->pluck('file_path')->map(function($path) {
-                    return storage_path('app/' . $path);
+                    return Storage::disk('private')->path($path);
                 })->toArray(),
                 $content
             );

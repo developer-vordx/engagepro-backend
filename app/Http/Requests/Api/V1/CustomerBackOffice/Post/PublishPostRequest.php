@@ -21,9 +21,16 @@ class PublishPostRequest extends BaseRequest
     {
         // Convert platforms from string to array if needed
         if ($this->has('platforms') && is_string($this->platforms)) {
-            $this->merge([
-                'platforms' => array_filter(array_map('trim', explode(',', $this->platforms)))
-            ]);
+            // Check if it's JSON string
+            $decoded = json_decode($this->platforms, true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                $this->merge(['platforms' => $decoded]);
+            } else {
+                // Comma-separated string
+                $this->merge([
+                    'platforms' => array_filter(array_map('trim', explode(',', $this->platforms)))
+                ]);
+            }
         }
     }
 

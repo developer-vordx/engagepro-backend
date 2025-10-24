@@ -160,6 +160,7 @@ return [
         'client_id' => env('TIKTOK_CLIENT_ID', ''),
         'client_secret' => env('TIKTOK_CLIENT_SECRET', ''),
         'redirect_uri' => env('TIKTOK_REDIRECT_URL', env('APP_URL') . '/auth/tiktok/callback'),
+        'account_connect_url' => env('TIKTOK_ACCOUNT_CONNECT_URL'),
     ],
 
 ];

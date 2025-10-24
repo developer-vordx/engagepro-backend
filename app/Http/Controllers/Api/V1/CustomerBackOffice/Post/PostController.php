@@ -65,7 +65,21 @@ class PostController extends Controller
             $posts = $query->orderBy('created_at', 'desc')
                           ->paginate($request->get('per_page', 15));
 
-            return Helper::response($posts, ResponseAlias::HTTP_OK);
+            // Format the paginated response properly
+            $formattedData = [
+                'posts' => $posts->items(),
+                'pagination' => [
+                    'current_page' => $posts->currentPage(),
+                    'per_page' => $posts->perPage(),
+                    'total' => $posts->total(),
+                    'last_page' => $posts->lastPage(),
+                    'from' => $posts->firstItem(),
+                    'to' => $posts->lastItem(),
+                    'has_more_pages' => $posts->hasMorePages(),
+                ]
+            ];
+
+            return Helper::response($formattedData, ResponseAlias::HTTP_OK);
 
         } catch (\Exception $e) {
             return Helper::errors($e);
@@ -171,7 +185,7 @@ class PostController extends Controller
                 foreach ($request->delete_files as $fileId) {
                     $file = $post->postFiles()->find($fileId);
                     if ($file) {
-                        Storage::delete($file->file_path);
+                        Storage::disk('private')->delete($file->file_path);
                         $file->delete();
                     }
                 }
@@ -208,7 +222,7 @@ class PostController extends Controller
 
             // Delete associated files
             foreach ($post->postFiles as $file) {
-                Storage::delete($file->file_path);
+                Storage::disk('private')->delete($file->file_path);
             }
 
             $post->delete();
@@ -275,7 +289,7 @@ class PostController extends Controller
                 // Validate content for this platform
                 $validation = $service->validateContent(
                     $post->postFiles->pluck('file_path')->map(function($path) {
-                        return storage_path('app/' . $path);
+                        return Storage::disk('private')->path($path);
                     })->toArray(),
                     [
                         'title' => $post->title,

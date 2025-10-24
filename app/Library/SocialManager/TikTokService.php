@@ -11,6 +11,7 @@ use Random\RandomException;
 use App\Models\Post;
 use Carbon\Carbon;
 use App\Helper;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 
 class TikTokService
@@ -30,7 +31,7 @@ class TikTokService
         $this->scopes = $platForm->scopes;
         $this->clientId = config('services.tiktok.client_id');
         $this->clientSecret = config('services.tiktok.client_secret');
-        $this->redirectUri = config('services.tiktok.redirect_uri');
+        $this->redirectUri = Auth::guard('customer')->user() ? config('services.tiktok.account_connect_url') : config('services.tiktok.redirect_uri');
         $this->platform = $platForm->slug;
         $this->supportedMediaTypes = $platForm->supported_media_types;
     }
@@ -82,13 +83,17 @@ class TikTokService
      */
     public function getAuthorizationUrl(array $scopes = []): string
     {
-        $scopes = empty($scopes) ? $this->scopes : $scopes;
-        
+        // If no scopes provided, use full scopes from database (for account connection)
+        // If scopes provided, use those (for login with minimal scopes)
+        if (empty($scopes)) {
+            $scopes = $this->scopes; // Full scopes for account connection
+        }
+
         // Ensure scopes is an array
         if (is_string($scopes)) {
             $scopes = Helper::parseScopes($scopes);
         }
-        
+
         $pkce = Helper::generatePKCE('tiktok_code_verifier');
 
         $params = [
@@ -676,16 +681,16 @@ class TikTokService
             'user.info.basic' => 'Read basic user profile information (open_id, display_name, avatar_url)',
             'user.info.profile' => 'Read extended user profile (bio_description, profile_deep_link)',
             'user.info.stats' => 'Read user statistics (followers, following, likes, video count)',
-            
+
             // Video scopes
             'video.list' => 'Read user\'s public videos with metadata',
             'video.upload' => 'Upload and publish videos on behalf of user',
             'video.publish' => 'Publish videos (included in video.upload for v2 API)',
-            
+
             // Research API scopes (if applicable)
             'research.adlib.basic' => 'Access Ad Library Research API',
             'research.data.basic' => 'Access Research API data',
-            
+
             // Comment scopes (if enabled)
             'comment.list' => 'Read comments on user\'s videos',
             'comment.list.manage' => 'Manage comments on user\'s videos',

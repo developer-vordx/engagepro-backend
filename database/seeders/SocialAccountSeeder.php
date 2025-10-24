@@ -15,7 +15,7 @@ class SocialAccountSeeder extends Seeder
                 'name' => 'TikTok',
                 'slug' => 'tiktok',
                 'url' => 'https://open.tiktokapis.com',
-                'scopes' => json_encode(['user.info.basic', 'user.info.profile', 'user.info.stats', 'video.list', 'video.upload', 'video.publish', 'research.adlib.basic', 'research.data.basic', 'comment.list', 'comment.list.manage']),
+                'scopes' => json_encode(['user.info.basic', 'user.info.profile', 'user.info.stats', 'video.list', 'video.upload', 'video.publish']),
                 'supported_media_types' => json_encode(['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/webm']),
                 'media_requirements' => json_encode([
                     'video' => ['max_size' => '287MB', 'formats' => ['mp4', 'mov', 'avi', 'webm'], 'min_duration' => 3, 'max_duration' => 600]
