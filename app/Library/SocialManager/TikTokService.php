@@ -393,8 +393,20 @@ class TikTokService
     {
         // Step 1: Initialize upload
         $fileSize = filesize($filePath);
-        $chunkSize = min(10 * 1024 * 1024, $fileSize); // 10MB or file size if smaller
-        $totalChunks = ceil($fileSize / $chunkSize);
+        $mimeType = mime_content_type($filePath);
+        
+        // Calculate chunk size according to TikTok API requirements
+        // Each chunk must be at least 5 MB but no greater than 64 MB
+        // Videos with total size less than 5 MB must be uploaded as whole
+        if ($fileSize < 5 * 1024 * 1024) {
+            // Upload as whole for files < 5MB
+            $chunkSize = $fileSize;
+            $totalChunks = 1;
+        } else {
+            // Use 10MB chunks for larger files (within 5-64MB range)
+            $chunkSize = 10 * 1024 * 1024;
+            $totalChunks = ceil($fileSize / $chunkSize);
+        }
 
         $headers = [
             'Authorization' => "Bearer {$accessToken}",
@@ -430,27 +442,127 @@ class TikTokService
         $publishId = $uploadData['publish_id'];
         $uploadUrl = $uploadData['upload_url'];
 
-        $uploadHeaders = [
-            'Authorization' => "Bearer {$accessToken}",
-        ];
+        // Step 2: Upload file using proper chunked upload method
+        $uploadResult = $this->uploadFileInChunks($uploadUrl, $filePath, $chunkSize, $totalChunks, $mimeType, $fileSize);
 
-        $uploadData = [
-            'video' => new \CURLFile($filePath, mime_content_type($filePath), basename($filePath))
-        ];
-
-        $uploadResponse = Helper::makeHttpRequest('POST', $uploadUrl, $uploadData, $uploadHeaders, false, $this->platform);
-
-        if ($uploadResponse['header_code'] != ResponseAlias::HTTP_OK) {
-            return $uploadResponse;
+        if ($uploadResult['header_code'] != ResponseAlias::HTTP_OK && $uploadResult['header_code'] != ResponseAlias::HTTP_CREATED) {
+            return $uploadResult;
         }
 
         return [
-            'header_code' => $uploadResponse['header_code'],
+            'header_code' => $uploadResult['header_code'],
             'body' => [
                 'publish_id' => $publishId,
                 'upload_url' => $uploadUrl,
                 'status' => 'uploaded'
             ]
+        ];
+    }
+
+    /**
+     * Upload file in chunks according to TikTok API specification
+     * @param string $uploadUrl
+     * @param string $filePath
+     * @param int $chunkSize
+     * @param int $totalChunks
+     * @param string $mimeType
+     * @param int $totalFileSize
+     * @return array
+     */
+    private function uploadFileInChunks(string $uploadUrl, string $filePath, int $chunkSize, int $totalChunks, string $mimeType, int $totalFileSize): array
+    {
+        $fileHandle = fopen($filePath, 'rb');
+        if (!$fileHandle) {
+            return [
+                'header_code' => ResponseAlias::HTTP_BAD_REQUEST,
+                'body' => 'Cannot open file for reading.'
+            ];
+        }
+
+        for ($chunkIndex = 0; $chunkIndex < $totalChunks; $chunkIndex++) {
+            $firstByte = $chunkIndex * $chunkSize;
+            $lastByte = min($firstByte + $chunkSize - 1, $totalFileSize - 1);
+            $currentChunkSize = $lastByte - $firstByte + 1;
+
+            // Read chunk data
+            fseek($fileHandle, $firstByte);
+            $chunkData = fread($fileHandle, $currentChunkSize);
+
+            // Prepare headers according to TikTok API specification
+            $headers = [
+                'Content-Type: ' . $mimeType,
+                'Content-Length: ' . $currentChunkSize,
+                'Content-Range: bytes ' . $firstByte . '-' . $lastByte . '/' . $totalFileSize
+            ];
+
+            // Upload chunk using PUT method
+            $chunkResult = $this->uploadChunk($uploadUrl, $chunkData, $headers);
+
+            if ($chunkResult['header_code'] != ResponseAlias::HTTP_PARTIAL_CONTENT && 
+                $chunkResult['header_code'] != ResponseAlias::HTTP_CREATED) {
+                fclose($fileHandle);
+                return $chunkResult;
+            }
+
+            // Check if this is the final chunk (should return 201 Created)
+            if ($chunkIndex === $totalChunks - 1 && $chunkResult['header_code'] === ResponseAlias::HTTP_CREATED) {
+                fclose($fileHandle);
+                return $chunkResult;
+            }
+        }
+
+        fclose($fileHandle);
+        return [
+            'header_code' => ResponseAlias::HTTP_OK,
+            'body' => 'All chunks uploaded successfully'
+        ];
+    }
+
+    /**
+     * Upload a single chunk using PUT method
+     * @param string $uploadUrl
+     * @param string $chunkData
+     * @param array $headers
+     * @return array
+     */
+    private function uploadChunk(string $uploadUrl, string $chunkData, array $headers): array
+    {
+        $ch = curl_init();
+        
+        curl_setopt_array($ch, [
+            CURLOPT_URL => $uploadUrl,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_PUT => true,
+            CURLOPT_CUSTOMREQUEST => 'PUT',
+            CURLOPT_HTTPHEADER => $headers,
+            CURLOPT_POSTFIELDS => $chunkData,
+            CURLOPT_HEADER => true,
+            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_TIMEOUT => 300, // 5 minutes timeout for large chunks
+        ]);
+
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $headerSize = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
+        
+        if (curl_errno($ch)) {
+            $error = curl_error($ch);
+            curl_close($ch);
+            return [
+                'header_code' => ResponseAlias::HTTP_INTERNAL_SERVER_ERROR,
+                'body' => 'cURL Error: ' . $error
+            ];
+        }
+
+        curl_close($ch);
+
+        $responseHeaders = substr($response, 0, $headerSize);
+        $responseBody = substr($response, $headerSize);
+
+        return [
+            'header_code' => $httpCode,
+            'body' => $responseBody,
+            'headers' => $responseHeaders
         ];
     }
 
@@ -632,19 +744,24 @@ class TikTokService
                 continue;
             }
 
-            // Check file type
+            // Check file type according to TikTok API documentation
             $mimeType = mime_content_type($filePath);
-            $allowedMimeTypes = ['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/webm'];
+            $allowedMimeTypes = [
+                'video/mp4',        // MP4 (recommended)
+                'video/webm',       // WebM
+                'video/quicktime',  // MOV
+                'video/x-msvideo'   // AVI
+            ];
 
             if (!in_array($mimeType, $allowedMimeTypes)) {
-                $errors[] = "TikTok only supports MP4, MOV, AVI, and WebM video files. {$filePath} is {$mimeType}.";
+                $errors[] = "TikTok only supports MP4 (recommended), WebM, MOV, and AVI video files. {$filePath} is {$mimeType}.";
                 continue;
             }
 
-            // Check file size (max 287MB for TikTok)
+            // Check file size (max 4GB for TikTok as per official API docs)
             $fileSize = filesize($filePath);
-            if ($fileSize > 287 * 1024 * 1024) {
-                $errors[] = "Video file {$filePath} exceeds TikTok's 287MB limit. Current size: " . round($fileSize / (1024 * 1024), 2) . "MB";
+            if ($fileSize > 4 * 1024 * 1024 * 1024) {
+                $errors[] = "Video file {$filePath} exceeds TikTok's 4GB limit. Current size: " . round($fileSize / (1024 * 1024 * 1024), 2) . "GB";
             }
 
             // Check if file is readable

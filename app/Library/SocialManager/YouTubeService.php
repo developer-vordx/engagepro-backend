@@ -5,6 +5,7 @@ namespace App\Library\SocialManager;
 use App\Models\SocialAccount;
 use App\Models\Post;
 use App\Models\PostFile;
+use App\Models\CustomerAccount;
 use App\Helper;
 use Illuminate\Support\Facades\Storage;
 use Exception;
